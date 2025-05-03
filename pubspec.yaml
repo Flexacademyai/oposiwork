@@ -1,0 +1,25 @@
+
+name: oposiciones_app
+description: Aplicación para mostrar oposiciones públicas clasificadas por ámbito.
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Firebase
+  firebase_core: ^2.25.4
+  cloud_firestore: ^4.8.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

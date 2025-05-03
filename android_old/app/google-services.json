@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "773998890971",
+    "project_id": "oposiwork-99cc1",
+    "storage_bucket": "oposiwork-99cc1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:773998890971:android:567acab193d8636d8421fe",
+        "android_client_info": {
+          "package_name": "com.example.oposifinal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0nBuOAW5Cvcbm5BFf8x29xm_XM1kArXM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
