@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Oposiwork — Prepara tu oposición con IA</title>
+  <meta name="description" content="El contenido oficial del BOE procesado por IA. Flashcards, tests, psicotécnicos y seguimiento de progreso para tu oposición." />
+  <meta name="theme-color" content="#2563EB" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Oposiwork — Prepara tu oposición con IA" />
+  <meta property="og:description" content="El BOE procesado por IA. Estudia de forma eficiente con resúmenes, tests, flashcards y seguimiento de progreso." />
+  <meta property="og:type" content="website" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #2563EB;
+      --primary-dark: #1D4ED8;
+      --text: #0F172A;
+      --text-secondary: #475569;
+      --bg: #F8FAFC;
+      --card: #FFFFFF;
+      --border: #E2E8F0;
+      --success: #10B981;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── Nav ─────────────────────────────────────────────── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: white;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--primary);
+      text-decoration: none;
+    }
+    nav .cta {
+      background: var(--primary);
+      color: white;
+      padding: 8px 20px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    /* ── Hero ────────────────────────────────────────────── */
+    .hero {
+      text-align: center;
+      padding: 80px 24px 64px;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .badge {
+      display: inline-block;
+      background: #EFF6FF;
+      color: var(--primary);
+      border: 1px solid #BFDBFE;
+      padding: 4px 14px;
+      border-radius: 99px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+    h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 800;
+      line-height: 1.2;
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+    h1 span { color: var(--primary); }
+    .hero p {
+      font-size: 1.125rem;
+      color: var(--text-secondary);
+      margin-bottom: 36px;
+      max-width: 560px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .hero-btns {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      padding: 14px 32px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1rem;
+      transition: background 0.15s;
+    }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-secondary {
+      background: white;
+      color: var(--primary);
+      padding: 14px 32px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1rem;
+      border: 2px solid var(--primary);
+    }
+
+    /* ── Oposiciones ─────────────────────────────────────── */
+    section {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 48px 24px;
+    }
+    h2 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      text-align: center;
+      color: var(--text-secondary);
+      margin-bottom: 40px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+    }
+    .card-emoji { font-size: 2.5rem; margin-bottom: 12px; }
+    .card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; }
+    .card p { color: var(--text-secondary); font-size: 0.9rem; }
+    .tag {
+      display: inline-block;
+      margin-top: 12px;
+      background: #F0FDF4;
+      color: var(--success);
+      border: 1px solid #BBF7D0;
+      padding: 2px 10px;
+      border-radius: 99px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .tag.orange {
+      background: #FFF7ED;
+      color: #EA580C;
+      border-color: #FED7AA;
+    }
+
+    /* ── Features ────────────────────────────────────────── */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .feature {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .feature-icon {
+      font-size: 1.75rem;
+      margin-bottom: 10px;
+    }
+    .feature h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
+    .feature p { font-size: 0.85rem; color: var(--text-secondary); }
+
+    /* ── Precios ─────────────────────────────────────────── */
+    .precios {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .precio-card {
+      background: white;
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      text-align: center;
+    }
+    .precio-card.destacado {
+      border-color: var(--primary);
+      position: relative;
+    }
+    .destacado-badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--primary);
+      color: white;
+      padding: 2px 16px;
+      border-radius: 99px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .precio-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+    .precio-card .precio { font-size: 2.5rem; font-weight: 800; color: var(--primary); }
+    .precio-card .per { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px; }
+    .precio-card ul { list-style: none; text-align: left; margin-bottom: 24px; }
+    .precio-card li { padding: 4px 0; font-size: 0.9rem; }
+    .precio-card li::before { content: "✓ "; color: var(--success); font-weight: 700; }
+    .btn-comprar {
+      display: block;
+      background: var(--primary);
+      color: white;
+      padding: 12px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    /* ── Footer ──────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 32px 24px;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      border-top: 1px solid var(--border);
+      background: white;
+    }
+    footer a { color: var(--primary); text-decoration: none; }
+  </style>
+</head>
+
+<body>
+
+<nav>
+  <a href="/" class="logo">Oposiwork</a>
+  <a href="https://app.oposiwork.com" class="cta">Empezar gratis</a>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="badge">Nuevo — BOE procesado por IA</div>
+  <h1>Prepara tu oposición<br><span>de forma inteligente</span></h1>
+  <p>El contenido oficial del BOE organizado en resúmenes, flashcards, tests y psicotécnicos. Todo en una app. Sin academias caras.</p>
+  <div class="hero-btns">
+    <a href="https://app.oposiwork.com" class="btn-primary">Empezar gratis</a>
+    <a href="#oposiciones" class="btn-secondary">Ver oposiciones</a>
+  </div>
+</div>
+
+<!-- Oposiciones disponibles -->
+<section id="oposiciones">
+  <h2>Oposiciones disponibles</h2>
+  <p class="subtitle">Contenido oficial procesado y organizado para que estudies desde el primer día.</p>
+  <div class="cards">
+    <div class="card">
+      <div class="card-emoji">📋</div>
+      <h3>Auxiliar Administrativo del Estado</h3>
+      <p>28 temas en 2 bloques. Normativa + ofimática. Tests tipo examen y supuestos administrativos.</p>
+      <span class="tag">C2 · AGE</span>
+    </div>
+    <div class="card">
+      <div class="card-emoji">👮</div>
+      <h3>Policía Nacional — Escala Básica</h3>
+      <p>Temario jurídico, ciencias sociales, inglés. Tests, supuestos y psicotécnicos incluidos.</p>
+      <span class="tag">Nacional</span>
+      <span class="tag orange">Psicotécnicos</span>
+    </div>
+    <div class="card">
+      <div class="card-emoji">🚒</div>
+      <h3>TES Bomberos Zaragoza</h3>
+      <p>Temario técnico sanitario y normativa local. Supuestos prácticos y psicotécnicos.</p>
+      <span class="tag">Zaragoza</span>
+      <span class="tag orange">Psicotécnicos</span>
+    </div>
+  </div>
+</section>
+
+<!-- Funcionalidades -->
+<section>
+  <h2>Todo lo que necesitas</h2>
+  <p class="subtitle">Herramientas de aprendizaje activo en una sola app.</p>
+  <div class="features">
+    <div class="feature">
+      <div class="feature-icon">📖</div>
+      <h3>Resúmenes por IA</h3>
+      <p>El BOE resumido en puntos clave, artículos importantes y conceptos imprescindibles.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🃏</div>
+      <h3>Flashcards SM-2</h3>
+      <p>Repaso espaciado con el algoritmo SM-2. Estudia lo que necesitas, cuando lo necesitas.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">✅</div>
+      <h3>Tests tipo examen</h3>
+      <p>Preguntas con explicaciones y referencias legales. Modo simulacro cronometrado.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🧠</div>
+      <h3>Psicotécnicos</h3>
+      <p>Series numéricas, analogías, razonamiento espacial, memoria y atención selectiva.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">💬</div>
+      <h3>Asistente IA</h3>
+      <p>Pregunta al asistente sobre el temario. Responde basándose en el contenido oficial.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">📊</div>
+      <h3>Seguimiento de progreso</h3>
+      <p>Racha de estudio, temas completados, tiempo estudiado y puntuación acumulada.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Precios -->
+<section id="precios">
+  <h2>Planes</h2>
+  <p class="subtitle">Sin compromisos. Cancela cuando quieras.</p>
+  <div class="precios">
+    <div class="precio-card">
+      <h3>Mensual</h3>
+      <div class="precio">9,99€</div>
+      <div class="per">al mes</div>
+      <ul>
+        <li>Todo el temario</li>
+        <li>Flashcards ilimitadas</li>
+        <li>Tests completos</li>
+        <li>Psicotécnicos</li>
+        <li>Asistente IA</li>
+        <li>1 descarga del temario PDF</li>
+      </ul>
+      <a href="https://app.oposiwork.com" class="btn-comprar">Empezar ahora</a>
+    </div>
+    <div class="precio-card destacado">
+      <div class="destacado-badge">Más popular — ahorra 33%</div>
+      <h3>Anual</h3>
+      <div class="precio">79,99€</div>
+      <div class="per">al año (6,67€/mes)</div>
+      <ul>
+        <li>Todo lo del plan mensual</li>
+        <li>Sesiones de voz con IA</li>
+        <li>Acceso prioritario a nuevas oposiciones</li>
+      </ul>
+      <a href="https://app.oposiwork.com" class="btn-comprar">Empezar ahora</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>© 2026 Oposiwork · <a href="/privacidad">Privacidad</a> · <a href="/terminos">Términos</a> · Hecho en España</p>
+</footer>
+
+</body>
+</html>

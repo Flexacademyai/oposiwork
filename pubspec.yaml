@@ -1,0 +1,54 @@
+name: oposiwork
+description: "Plataforma de preparación de oposiciones en España - BOE procesado por IA"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Backend
+  supabase_flutter: ^2.8.4
+
+  # Estado reactivo
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Navegación
+  go_router: ^14.8.1
+
+  # Pagos
+  purchases_flutter: ^8.4.0
+
+  # Notificaciones push
+  firebase_core: ^3.13.0
+  firebase_messaging: ^15.2.5
+  flutter_local_notifications: ^18.0.1
+
+  # Fuentes
+  google_fonts: ^6.2.1
+
+  # Utilidades
+  shared_preferences: ^2.5.3
+  flutter_secure_storage: ^9.2.4
+  intl: ^0.20.2
+  url_launcher: ^6.3.1
+  cached_network_image: ^3.4.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.15
+  riverpod_generator: ^2.6.1
+
+flutter:
+  uses-material-design: true
+
+  # assets: (añadir cuando haya imágenes reales)

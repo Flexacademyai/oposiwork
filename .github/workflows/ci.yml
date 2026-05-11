@@ -1,0 +1,141 @@
+name: CI/CD Oposiwork
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  FLUTTER_VERSION: '3.32.0'
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Flutter: análisis estático + tests
+  # ─────────────────────────────────────────────
+  flutter-check:
+    name: Flutter — análisis y tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Instalar dependencias
+        run: flutter pub get
+
+      - name: Verificar formato de código
+        run: dart format --set-exit-if-changed lib/
+
+      - name: Análisis estático
+        run: flutter analyze --no-fatal-infos
+
+      - name: Ejecutar tests
+        run: flutter test --coverage
+
+  # ─────────────────────────────────────────────
+  # Flutter Web: build
+  # ─────────────────────────────────────────────
+  flutter-web-build:
+    name: Flutter Web — build
+    runs-on: ubuntu-latest
+    needs: flutter-check
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Instalar dependencias
+        run: flutter pub get
+
+      - name: Build web
+        run: |
+          flutter build web --release --base-href / \
+            --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
+            --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} \
+            --dart-define=REVENUECAT_API_KEY_IOS=${{ secrets.REVENUECAT_API_KEY_IOS }} \
+            --dart-define=REVENUECAT_API_KEY_ANDROID=${{ secrets.REVENUECAT_API_KEY_ANDROID }} \
+            --dart-define=FLUTTER_WEB_CANVASKIT_URL=/canvaskit/
+
+      - name: Copiar configuración Vercel al artefacto web
+        run: cp vercel.json build/web/vercel.json
+
+      - name: Subir artefacto web
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-web
+          path: build/web/
+          retention-days: 7
+
+  # ─────────────────────────────────────────────
+  # Supabase Edge Functions: deploy
+  # ─────────────────────────────────────────────
+  supabase-deploy:
+    name: Supabase — funciones y migraciones
+    runs-on: ubuntu-latest
+    needs: flutter-check
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Aplicar migraciones
+        run: supabase db push --linked
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      - name: Deploy Edge Functions
+        run: |
+          supabase functions deploy download-pdf --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          supabase functions deploy verify-subscription --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          supabase functions deploy chat-rag --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          supabase functions deploy monitor-boe --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          supabase functions deploy crear-sesion-voz --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+  # ─────────────────────────────────────────────
+  # Vercel: deploy web
+  # ─────────────────────────────────────────────
+  vercel-deploy:
+    name: Vercel — deploy web
+    runs-on: ubuntu-latest
+    needs: flutter-web-build
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Descargar artefacto web
+        uses: actions/download-artifact@v4
+        with:
+          name: flutter-web
+          path: build/web
+
+      - name: Deploy a Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: build/web
+          vercel-args: '--prod'
