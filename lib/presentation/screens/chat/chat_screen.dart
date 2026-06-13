@@ -10,7 +10,11 @@ class _Mensaje {
   final bool esUsuario;
   final List<String> fuentes;
 
-  const _Mensaje({required this.texto, required this.esUsuario, this.fuentes = const []});
+  const _Mensaje({
+    required this.texto,
+    required this.esUsuario,
+    this.fuentes = const [],
+  });
 }
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -45,12 +49,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final supabase = ref.read(supabaseClientProvider);
     final user = supabase.auth.currentUser;
     if (user == null) return;
-    final data = await supabase
-        .from('consentimientos')
-        .select()
-        .eq('usuario_id', user.id)
-        .eq('tipo', 'ia')
-        .maybeSingle();
+    final data =
+        await supabase
+            .from('consentimientos')
+            .select()
+            .eq('usuario_id', user.id)
+            .eq('tipo', 'ia')
+            .maybeSingle();
     if (data != null && mounted) {
       setState(() => _consentimientoAceptado = true);
       _agregarMensajeBienvenida();
@@ -61,10 +66,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _agregarMensajeBienvenida() {
     setState(() {
-      _mensajes.add(const _Mensaje(
-        texto: 'Hola, soy tu asistente de estudio. Puedo responder preguntas sobre el temario de tu oposición basándome exclusivamente en el contenido oficial. ¿En qué puedo ayudarte?',
-        esUsuario: false,
-      ));
+      _mensajes.add(
+        const _Mensaje(
+          texto:
+              'Hola, soy tu asistente de estudio. Puedo responder preguntas sobre el temario de tu oposición basándome exclusivamente en el contenido oficial. ¿En qué puedo ayudarte?',
+          esUsuario: false,
+        ),
+      );
     });
   }
 
@@ -72,22 +80,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final aceptado = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text('Asistente de IA'),
-        content: const Text(
-          'Este chat usa inteligencia artificial para responder tus preguntas. Las respuestas se generan automáticamente basándose en el contenido del temario oficial y pueden contener errores. Siempre contrasta con las fuentes oficiales del BOE.\n\n¿Aceptas usar este servicio?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('No, volver'),
+      builder:
+          (_) => AlertDialog(
+            title: const Text('Asistente de IA'),
+            content: const Text(
+              'Este chat usa inteligencia artificial para responder tus preguntas. Las respuestas se generan automáticamente basándose en el contenido del temario oficial y pueden contener errores. Siempre contrasta con las fuentes oficiales del BOE.\n\n¿Aceptas usar este servicio?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('No, volver'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Aceptar'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Aceptar'),
-          ),
-        ],
-      ),
     );
 
     if (aceptado == true && mounted) {
@@ -116,7 +125,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (texto.isEmpty || _enviando || !_consentimientoAceptado) return;
 
     final sanitizado = SecurityService.sanitizar(texto);
-    if (!SecurityService.longitudValida(sanitizado, min: 1, max: 500)) return;
+    final error = SecurityService.validarTextoLibre(texto, min: 1, max: 500);
+    if (error != null ||
+        !SecurityService.longitudValida(sanitizado, min: 1, max: 500)) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error ?? 'Pregunta no valida')));
+      return;
+    }
 
     setState(() {
       _mensajes.add(_Mensaje(texto: sanitizado, esUsuario: true));
@@ -129,33 +145,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       final supabase = ref.read(supabaseClientProvider);
       final response = await supabase.functions.invoke(
         'chat-rag',
-        body: {
-          'pregunta': sanitizado,
-          'oposicion_id': widget.oposicionId,
-        },
+        body: {'pregunta': sanitizado, 'oposicion_id': widget.oposicionId},
       );
       final data = response.data as Map<String, dynamic>?;
-      final respuesta = data?['respuesta'] as String? ?? 'Sin respuesta disponible.';
+      final respuesta =
+          data?['respuesta'] as String? ?? 'Sin respuesta disponible.';
       final fuentesRaw = data?['fuentes'] as List? ?? [];
-      final fuentes = fuentesRaw
-          .map((f) => f['fragmento']?.toString() ?? '')
-          .where((s) => s.isNotEmpty)
-          .take(2)
-          .toList();
+      final fuentes =
+          fuentesRaw
+              .map((f) => f['fragmento']?.toString() ?? '')
+              .where((s) => s.isNotEmpty)
+              .take(2)
+              .toList();
 
       if (mounted) {
         setState(() {
-          _mensajes.add(_Mensaje(texto: respuesta, esUsuario: false, fuentes: fuentes));
+          _mensajes.add(
+            _Mensaje(texto: respuesta, esUsuario: false, fuentes: fuentes),
+          );
         });
         _scrollAlFinal();
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _mensajes.add(const _Mensaje(
-            texto: 'Ha ocurrido un error. Inténtalo de nuevo.',
-            esUsuario: false,
-          ));
+          _mensajes.add(
+            const _Mensaje(
+              texto: 'Ha ocurrido un error. Inténtalo de nuevo.',
+              esUsuario: false,
+            ),
+          );
         });
       }
     } finally {
@@ -182,7 +201,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         title: const Text('Asistente IA'),
         actions: [
           Tooltip(
-            message: 'Respuestas generadas por IA basadas en el temario oficial',
+            message:
+                'Respuestas generadas por IA basadas en el temario oficial',
             child: const Padding(
               padding: EdgeInsets.only(right: 12),
               child: Icon(Icons.info_outline_rounded, size: 20),
@@ -201,7 +221,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   itemCount: _mensajes.length + (_enviando ? 1 : 0),
                   itemBuilder: (context, i) {
                     if (i == _mensajes.length && _enviando) {
-                      return _buildBurbuja(const _Mensaje(texto: '...', esUsuario: false), cargando: true);
+                      return _buildBurbuja(
+                        const _Mensaje(texto: '...', esUsuario: false),
+                        cargando: true,
+                      );
                     }
                     return _buildBurbuja(_mensajes[i]);
                   },
@@ -222,44 +245,57 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       alignment: esUsuario ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.78,
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: esUsuario ? AppColors.primary : AppColors.surface,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
-            bottomLeft: esUsuario ? const Radius.circular(16) : const Radius.circular(4),
-            bottomRight: esUsuario ? const Radius.circular(4) : const Radius.circular(16),
+            bottomLeft:
+                esUsuario
+                    ? const Radius.circular(16)
+                    : const Radius.circular(4),
+            bottomRight:
+                esUsuario
+                    ? const Radius.circular(4)
+                    : const Radius.circular(16),
           ),
           border: esUsuario ? null : Border.all(color: AppColors.border),
         ),
-        child: cargando
-            ? const SizedBox(
-                width: 40,
-                child: LinearProgressIndicator(minHeight: 2),
-              )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    mensaje.texto,
-                    style: TextStyle(
-                      color: esUsuario ? Colors.white : AppColors.textPrimary,
-                      height: 1.5,
+        child:
+            cargando
+                ? const SizedBox(
+                  width: 40,
+                  child: LinearProgressIndicator(minHeight: 2),
+                )
+                : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      mensaje.texto,
+                      style: TextStyle(
+                        color: esUsuario ? Colors.white : AppColors.textPrimary,
+                        height: 1.5,
+                      ),
                     ),
-                  ),
-                  if (mensaje.fuentes.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    const Divider(height: 1),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Basado en el temario oficial',
-                      style: TextStyle(fontSize: 11, color: AppColors.textTertiary, fontStyle: FontStyle.italic),
-                    ),
+                    if (mensaje.fuentes.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      const Divider(height: 1),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Basado en el temario oficial',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textTertiary,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
-              ),
+                ),
       ),
     );
   }
@@ -288,7 +324,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     borderRadius: BorderRadius.circular(12),
                     borderSide: const BorderSide(color: AppColors.border),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                 ),
                 onSubmitted: (_) => _enviarMensaje(),
               ),

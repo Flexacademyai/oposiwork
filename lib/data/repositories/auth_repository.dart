@@ -20,15 +20,19 @@ class AuthRepository {
     String? nombre,
     String? apellidos,
   }) async {
-    final nombreLimpio = nombre != null ? SecurityService.sanitizarNombre(nombre) : null;
-    final apellidosLimpio = apellidos != null ? SecurityService.sanitizarNombre(apellidos) : null;
+    final nombreLimpio =
+        nombre != null ? SecurityService.sanitizarNombre(nombre) : null;
+    final apellidosLimpio =
+        apellidos != null ? SecurityService.sanitizarNombre(apellidos) : null;
 
     final response = await _supabase.auth.signUp(
-      email: email,
+      email: SecurityService.normalizarEmail(email),
       password: password,
       data: {
-        if (nombreLimpio != null && nombreLimpio.isNotEmpty) 'nombre': nombreLimpio,
-        if (apellidosLimpio != null && apellidosLimpio.isNotEmpty) 'apellidos': apellidosLimpio,
+        if (nombreLimpio != null && nombreLimpio.isNotEmpty)
+          'nombre': nombreLimpio,
+        if (apellidosLimpio != null && apellidosLimpio.isNotEmpty)
+          'apellidos': apellidosLimpio,
       },
     );
     return response;
@@ -39,7 +43,7 @@ class AuthRepository {
     required String password,
   }) async {
     return await _supabase.auth.signInWithPassword(
-      email: email,
+      email: SecurityService.normalizarEmail(email),
       password: password,
     );
   }
@@ -53,37 +57,24 @@ class AuthRepository {
   }
 
   Future<void> enviarRecuperacionContrasena(String email) async {
-    await _supabase.auth.resetPasswordForEmail(email);
+    await _supabase.auth.resetPasswordForEmail(
+      SecurityService.normalizarEmail(email),
+    );
   }
 
   Future<Perfil?> obtenerPerfil() async {
     final userId = usuarioActual?.id;
     if (userId == null) return null;
 
-    final data = await _supabase
-        .from(SupabaseConfig.tablaPerfiles)
-        .select()
-        .eq('id', userId)
-        .maybeSingle();
+    final data =
+        await _supabase
+            .from(SupabaseConfig.tablaPerfiles)
+            .select()
+            .eq('id', userId)
+            .maybeSingle();
 
     if (data == null) return null;
     return Perfil.fromMap(data);
-  }
-
-  Future<void> crearPerfilInicial({
-    required String userId,
-    String? nombre,
-    String? apellidos,
-  }) async {
-    final nombreLimpio = nombre != null ? SecurityService.sanitizarNombre(nombre) : null;
-    final apellidosLimpio = apellidos != null ? SecurityService.sanitizarNombre(apellidos) : null;
-
-    await _supabase.from(SupabaseConfig.tablaPerfiles).upsert({
-      'id': userId,
-      if (nombreLimpio != null && nombreLimpio.isNotEmpty) 'nombre': nombreLimpio,
-      if (apellidosLimpio != null && apellidosLimpio.isNotEmpty) 'apellidos': apellidosLimpio,
-      'plan': 'free',
-    });
   }
 
   Future<void> actualizarPerfil({
@@ -96,16 +87,25 @@ class AuthRepository {
     final userId = usuarioActual?.id;
     if (userId == null) return;
 
-    final nombreLimpio = nombre != null ? SecurityService.sanitizarNombre(nombre) : null;
-    final apellidosLimpio = apellidos != null ? SecurityService.sanitizarNombre(apellidos) : null;
+    final nombreLimpio =
+        nombre != null ? SecurityService.sanitizarNombre(nombre) : null;
+    final apellidosLimpio =
+        apellidos != null ? SecurityService.sanitizarNombre(apellidos) : null;
 
-    await _supabase.from(SupabaseConfig.tablaPerfiles).update({
-      if (nombreLimpio != null && nombreLimpio.isNotEmpty) 'nombre': nombreLimpio,
-      if (apellidosLimpio != null && apellidosLimpio.isNotEmpty) 'apellidos': apellidosLimpio,
-      if (avatarUrl != null) 'avatar_url': avatarUrl,
-      if (notificacionesPush != null) 'notificaciones_push': notificacionesPush,
-      if (notificacionesEmail != null) 'notificaciones_email': notificacionesEmail,
-      'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', userId);
+    await _supabase
+        .from(SupabaseConfig.tablaPerfiles)
+        .update({
+          if (nombreLimpio != null && nombreLimpio.isNotEmpty)
+            'nombre': nombreLimpio,
+          if (apellidosLimpio != null && apellidosLimpio.isNotEmpty)
+            'apellidos': apellidosLimpio,
+          if (avatarUrl != null) 'avatar_url': avatarUrl,
+          if (notificacionesPush != null)
+            'notificaciones_push': notificacionesPush,
+          if (notificacionesEmail != null)
+            'notificaciones_email': notificacionesEmail,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', userId);
   }
 }

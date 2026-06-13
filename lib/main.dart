@@ -19,10 +19,18 @@ void main() async {
     anonKey: SupabaseConfig.anonKey,
   );
 
-  // RevenueCat no soporta Flutter Web — solo inicializar en móvil
-  if (!kIsWeb) {
+  // RevenueCat no soporta Flutter Web; en el MVP se inicializa solo si pagos esta activo.
+  if (!kIsWeb && RevenueCatConfig.pagosHabilitados) {
     await _initRevenueCat();
+  }
+
+  if (!kIsWeb) {
     await NotificationsService.initialize();
+    Supabase.instance.client.auth.onAuthStateChange.listen((event) {
+      if (event.session != null) {
+        NotificationsService.registrarTokenActual();
+      }
+    });
   }
 
   runApp(const ProviderScope(child: OposiworkApp()));

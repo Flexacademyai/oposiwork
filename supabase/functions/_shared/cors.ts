@@ -1,7 +1,8 @@
 // Orígenes permitidos para peticiones de browser.
 // Las apps móviles (iOS/Android) no usan CORS — solo aplica a web.
 const ALLOWED_ORIGINS: ReadonlySet<string> = new Set([
-  'https://app.oposiwork.com',
+  'https://www.oposiwork.com',
+  'https://oposiwork.com',
   // Desarrollo local — Flutter web y herramientas típicas
   'http://localhost:5000',
   'http://localhost:5001',
@@ -17,7 +18,7 @@ const ALLOWED_ORIGINS: ReadonlySet<string> = new Set([
  */
 export function buildCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get('Origin') ?? '';
-  const allowed = ALLOWED_ORIGINS.has(origin) ? origin : 'https://app.oposiwork.com';
+  const allowed = ALLOWED_ORIGINS.has(origin) ? origin : 'https://www.oposiwork.com';
   return {
     'Access-Control-Allow-Origin': allowed,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',

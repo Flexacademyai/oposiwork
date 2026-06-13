@@ -58,7 +58,13 @@ app.*.map.json
 # Firebase — descargar manualmente desde Firebase Console
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
+android/key.properties
+android/app/*.jks
+android/app/*.keystore
 
 # Supabase local
 supabase/.env
 supabase/.branches/
+supabase/.temp/
+.vercel
+.env*.local

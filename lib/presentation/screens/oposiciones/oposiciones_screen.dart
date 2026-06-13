@@ -18,31 +18,83 @@ class OposicionesScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text(AppStrings.todasLasOposiciones),
+        actions: [
+          IconButton(
+            tooltip: 'Cobertura oficial',
+            icon: const Icon(Icons.public_rounded),
+            onPressed: () => context.push(AppRoutes.cobertura),
+          ),
+        ],
       ),
       body: oposicionesAsync.when(
-        data: (oposiciones) => ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: oposiciones.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final op = oposiciones[index];
-            return _TarjetaOposicion(
-              nombre: op.nombre,
-              cuerpo: op.cuerpo,
-              administracion: op.administracion,
-              nivel: op.nivel,
-              tienePsicotecnicos: op.tienePsicotecnicos,
-              tienePruebasFisicas: op.tienePruebasFisicas,
-              onTap: () => context.push(
-                AppRoutes.oposicionDetail.replaceFirst(':id', op.id),
-              ),
-            );
-          },
-        ),
+        data: (oposiciones) {
+          if (oposiciones.isEmpty) {
+            return const _EstadoVacioOposiciones();
+          }
+
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: oposiciones.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final op = oposiciones[index];
+              return _TarjetaOposicion(
+                nombre: op.nombre,
+                cuerpo: op.cuerpo,
+                administracion: op.administracion,
+                nivel: op.nivel,
+                tienePsicotecnicos: op.tienePsicotecnicos,
+                tienePruebasFisicas: op.tienePruebasFisicas,
+                onTap:
+                    () => context.push(
+                      AppRoutes.oposicionDetail.replaceFirst(':id', op.id),
+                    ),
+              );
+            },
+          );
+        },
         loading: () => const LoadingWidget(mensaje: 'Cargando oposiciones...'),
-        error: (e, _) => AppErrorWidget(
-          mensaje: e.toString(),
-          onReintentar: () => ref.invalidate(oposicionesActivasProvider),
+        error:
+            (e, _) => AppErrorWidget(
+              mensaje: e.toString(),
+              onReintentar: () => ref.invalidate(oposicionesActivasProvider),
+            ),
+      ),
+    );
+  }
+}
+
+class _EstadoVacioOposiciones extends StatelessWidget {
+  const _EstadoVacioOposiciones();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.search_off_rounded,
+              size: 64,
+              color: AppColors.textTertiary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No hay convocatorias con inscripción abierta',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'El monitor oficial seguirá revisando BOE, boletines autonómicos y boletines provinciales.',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+            ),
+          ],
         ),
       ),
     );
@@ -118,10 +170,7 @@ class _TarjetaOposicion extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 4,
                 children: [
-                  _Chip(
-                    label: administracion,
-                    color: AppColors.primaryLight,
-                  ),
+                  _Chip(label: administracion, color: AppColors.primaryLight),
                   _Chip(label: 'Grupo $nivel', color: AppColors.secondary),
                   if (tienePsicotecnicos)
                     _Chip(label: 'Psicotécnicos', color: AppColors.warning),

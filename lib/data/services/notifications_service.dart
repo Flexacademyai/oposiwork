@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class NotificationsService {
   NotificationsService._();
@@ -32,6 +33,9 @@ class NotificationsService {
       );
 
       FirebaseMessaging.onMessage.listen(_mostrarNotificacionForeground);
+      FirebaseMessaging.instance.onTokenRefresh.listen((_) {
+        registrarTokenActual();
+      });
       return true;
     } catch (e) {
       if (kDebugMode) {
@@ -47,6 +51,25 @@ class NotificationsService {
     } catch (_) {
       return null;
     }
+  }
+
+  static Future<void> registrarTokenActual() async {
+    if (kIsWeb) return;
+
+    final supabase = Supabase.instance.client;
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    final token = await obtenerTokenFcm();
+    if (token == null || token.isEmpty) return;
+
+    await supabase.from('usuario_dispositivos').upsert({
+      'usuario_id': userId,
+      'fcm_token': token,
+      'plataforma': defaultTargetPlatform.name,
+      'activo': true,
+      'ultimo_uso': DateTime.now().toIso8601String(),
+    }, onConflict: 'usuario_id,fcm_token');
   }
 
   static Future<void> _mostrarNotificacionForeground(

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/pregunta_test.dart';
 import '../../../data/repositories/contenido_repository.dart';
+import '../../../data/repositories/progreso_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/error_widget.dart';
 import '../../widgets/common/loading_widget.dart';
@@ -11,9 +12,11 @@ import '../../widgets/common/premium_lock_widget.dart';
 
 final _preguntasTestProvider = FutureProvider.autoDispose
     .family<List<PreguntaTest>, String>((ref, oposicionId) async {
-  final supabase = ref.watch(supabaseClientProvider);
-  return ContenidoRepository(supabase).obtenerPreguntasTestPorOposicion(oposicionId, limite: 20);
-});
+      final supabase = ref.watch(supabaseClientProvider);
+      return ContenidoRepository(
+        supabase,
+      ).obtenerPreguntasTestPorOposicion(oposicionId, limite: 20);
+    });
 
 class TestScreen extends ConsumerStatefulWidget {
   const TestScreen({super.key, required this.oposicionId});
@@ -35,7 +38,7 @@ class _TestScreenState extends ConsumerState<TestScreen> {
     setState(() => _respuestaElegida = opcion);
   }
 
-  void _confirmar(PreguntaTest pregunta) {
+  Future<void> _confirmar(PreguntaTest pregunta) async {
     if (_respuestaElegida == null || _confirmada) return;
     final correcto = _respuestaElegida == pregunta.respuestaCorrecta;
     setState(() {
@@ -43,6 +46,21 @@ class _TestScreenState extends ConsumerState<TestScreen> {
       _respuestas[pregunta.id] = _respuestaElegida!;
       _aciertos.add(correcto);
     });
+    final userId = ref.read(usuarioActualProvider)?.id;
+    if (userId == null) return;
+    try {
+      await ProgresoRepository(
+        ref.read(supabaseClientProvider),
+      ).registrarResultadoEjercicio(
+        userId: userId,
+        tipo: 'test',
+        referenciaId: pregunta.id,
+        correcto: correcto,
+        respuestaDada: _respuestaElegida,
+      );
+    } catch (_) {
+      // El test no debe bloquearse si falla el registro estadistico.
+    }
   }
 
   void _siguiente(List<PreguntaTest> preguntas) {
@@ -75,16 +93,18 @@ class _TestScreenState extends ConsumerState<TestScreen> {
         title: const Text('Test'),
         actions: [
           async.whenOrNull(
-            data: (preguntas) => Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Center(
-                child: Text(
-                  '${_indice + 1}/${preguntas.length}',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ) ?? const SizedBox.shrink(),
+                data:
+                    (preguntas) => Padding(
+                      padding: const EdgeInsets.only(right: 16),
+                      child: Center(
+                        child: Text(
+                          '${_indice + 1}/${preguntas.length}',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+              ) ??
+              const SizedBox.shrink(),
         ],
       ),
       body: Stack(
@@ -92,7 +112,9 @@ class _TestScreenState extends ConsumerState<TestScreen> {
           async.when(
             data: (preguntas) {
               if (preguntas.isEmpty) {
-                return const Center(child: Text('No hay preguntas disponibles aún'));
+                return const Center(
+                  child: Text('No hay preguntas disponibles aún'),
+                );
               }
               final pregunta = preguntas[_indice];
               return Column(
@@ -113,7 +135,9 @@ class _TestScreenState extends ConsumerState<TestScreen> {
                           const SizedBox(height: 12),
                           Text(
                             pregunta.enunciado,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(height: 1.5),
+                            style: Theme.of(
+                              context,
+                            ).textTheme.titleMedium?.copyWith(height: 1.5),
                           ),
                           const SizedBox(height: 24),
                           ..._buildOpciones(pregunta),
@@ -140,7 +164,13 @@ class _TestScreenState extends ConsumerState<TestScreen> {
   }
 
   Widget _buildDificultad(int dificultad) {
-    final colores = [Colors.green, Colors.green, Colors.orange, Colors.orange, Colors.red];
+    final colores = [
+      Colors.green,
+      Colors.green,
+      Colors.orange,
+      Colors.orange,
+      Colors.red,
+    ];
     final etiquetas = ['', 'Fácil', 'Básica', 'Media', 'Difícil', 'Experto'];
     final color = colores[(dificultad - 1).clamp(0, 4)];
     return Container(
@@ -151,7 +181,11 @@ class _TestScreenState extends ConsumerState<TestScreen> {
       ),
       child: Text(
         etiquetas[dificultad.clamp(1, 5)],
-        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -196,9 +230,15 @@ class _TestScreenState extends ConsumerState<TestScreen> {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: esElegida && !_confirmada ? AppColors.primary : Colors.transparent,
+                  color:
+                      esElegida && !_confirmada
+                          ? AppColors.primary
+                          : Colors.transparent,
                   border: Border.all(
-                    color: esElegida && !_confirmada ? AppColors.primary : AppColors.border,
+                    color:
+                        esElegida && !_confirmada
+                            ? AppColors.primary
+                            : AppColors.border,
                   ),
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -208,7 +248,10 @@ class _TestScreenState extends ConsumerState<TestScreen> {
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
-                      color: esElegida && !_confirmada ? Colors.white : AppColors.textSecondary,
+                      color:
+                          esElegida && !_confirmada
+                              ? Colors.white
+                              : AppColors.textSecondary,
                     ),
                   ),
                 ),
@@ -218,7 +261,11 @@ class _TestScreenState extends ConsumerState<TestScreen> {
                 child: Text(e.value, style: const TextStyle(height: 1.4)),
               ),
               if (_confirmada && esCorrecta)
-                const Icon(Icons.check_circle, color: AppColors.success, size: 20),
+                const Icon(
+                  Icons.check_circle,
+                  color: AppColors.success,
+                  size: 20,
+                ),
               if (_confirmada && esElegida && !esCorrecta)
                 const Icon(Icons.cancel, color: AppColors.error, size: 20),
             ],
@@ -242,7 +289,13 @@ class _TestScreenState extends ConsumerState<TestScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Explicación', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+          const Text(
+            'Explicación',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
           const SizedBox(height: 6),
           if (pregunta.explicacion != null)
             Text(pregunta.explicacion!, style: const TextStyle(height: 1.5)),
@@ -262,7 +315,10 @@ class _TestScreenState extends ConsumerState<TestScreen> {
     );
   }
 
-  Widget _buildBotonesAccion(List<PreguntaTest> preguntas, PreguntaTest pregunta) {
+  Widget _buildBotonesAccion(
+    List<PreguntaTest> preguntas,
+    PreguntaTest pregunta,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
@@ -271,25 +327,35 @@ class _TestScreenState extends ConsumerState<TestScreen> {
       ),
       child: SizedBox(
         width: double.infinity,
-        child: _confirmada
-            ? ElevatedButton(
-                onPressed: () => _siguiente(preguntas),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child:
+            _confirmada
+                ? ElevatedButton(
+                  onPressed: () => _siguiente(preguntas),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    _indice < preguntas.length - 1
+                        ? 'Siguiente pregunta'
+                        : 'Ver resultado',
+                  ),
+                )
+                : ElevatedButton(
+                  onPressed:
+                      _respuestaElegida != null
+                          ? () => _confirmar(pregunta)
+                          : null,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Confirmar respuesta'),
                 ),
-                child: Text(
-                  _indice < preguntas.length - 1 ? 'Siguiente pregunta' : 'Ver resultado',
-                ),
-              )
-            : ElevatedButton(
-                onPressed: _respuestaElegida != null ? () => _confirmar(pregunta) : null,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Confirmar respuesta'),
-              ),
       ),
     );
   }

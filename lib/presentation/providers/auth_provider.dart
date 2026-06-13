@@ -52,19 +52,12 @@ class AuthNotifier extends AsyncNotifier<void> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final repo = ref.read(authRepositoryProvider);
-      final response = await repo.registrarConEmail(
+      await repo.registrarConEmail(
         email: email,
         password: password,
         nombre: nombre,
         apellidos: apellidos,
       );
-      if (response.user != null) {
-        await repo.crearPerfilInicial(
-          userId: response.user!.id,
-          nombre: nombre,
-          apellidos: apellidos,
-        );
-      }
     });
   }
 
@@ -74,10 +67,9 @@ class AuthNotifier extends AsyncNotifier<void> {
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      await ref.read(authRepositoryProvider).iniciarSesionConEmail(
-        email: email,
-        password: password,
-      );
+      await ref
+          .read(authRepositoryProvider)
+          .iniciarSesionConEmail(email: email, password: password);
     });
   }
 

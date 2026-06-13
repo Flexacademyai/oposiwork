@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../config/revenuecat_config.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../providers/suscripcion_provider.dart';
@@ -74,8 +76,11 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             color: Colors.white.withAlpha(30),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.workspace_premium_rounded,
-              size: 48, color: Colors.white),
+          child: const Icon(
+            Icons.workspace_premium_rounded,
+            size: 48,
+            color: Colors.white,
+          ),
         ),
         const SizedBox(height: 16),
         Text(
@@ -103,7 +108,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       (Icons.quiz_rounded, 'Tests ilimitados con explicaciones'),
       (Icons.psychology_rounded, 'Psicotécnicos (Policía y Bomberos)'),
       (Icons.trending_up_rounded, 'Seguimiento de progreso completo'),
-      (Icons.picture_as_pdf_rounded, 'Descarga del PDF oficial del temario'),
+      (
+        Icons.picture_as_pdf_rounded,
+        'Descarga del PDF oficial cuando este disponible',
+      ),
       (Icons.notifications_rounded, 'Alertas de cambios en convocatorias'),
       (Icons.emoji_events_rounded, 'Gamificación y logros'),
     ];
@@ -115,23 +123,29 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
-        children: items
-            .map(
-              (item) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  children: [
-                    Icon(item.$1, color: Colors.white, size: 20),
-                    const SizedBox(width: 12),
-                    Text(
-                      item.$2,
-                      style: const TextStyle(color: Colors.white, fontSize: 14),
+        children:
+            items
+                .map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      children: [
+                        Icon(item.$1, color: Colors.white, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            item.$2,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-            )
-            .toList(),
+                  ),
+                )
+                .toList(),
       ),
     );
   }
@@ -162,27 +176,39 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   }
 
   Widget _buildBotonComprar(BuildContext context, bool cargando) {
+    final pagosActivos = RevenueCatConfig.pagosHabilitados;
     return ElevatedButton(
-      onPressed: cargando ? null : _comprar,
+      onPressed:
+          cargando
+              ? null
+              : pagosActivos
+              ? _comprar
+              : _mostrarAvisoMvp,
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.white,
         foregroundColor: AppColors.primary,
         minimumSize: const Size(double.infinity, 56),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
-      child: cargando
-          ? const CircularProgressIndicator(color: AppColors.primary)
-          : Text(
-              'Suscribirse — ${_anualSeleccionado ? AppStrings.precioAnual : AppStrings.precioMensual}',
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
+      child:
+          cargando
+              ? const CircularProgressIndicator(color: AppColors.primary)
+              : Text(
+                pagosActivos
+                    ? 'Suscribirse - ${_anualSeleccionado ? AppStrings.precioAnual : AppStrings.precioMensual}'
+                    : 'Premium disponible proximamente',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
               ),
-            ),
     );
   }
 
   Widget _buildRestaurar(bool cargando) {
+    if (kIsWeb || !RevenueCatConfig.pagosHabilitados) {
+      return const SizedBox.shrink();
+    }
     return TextButton(
       onPressed: cargando ? null : _restaurar,
       child: const Text(
@@ -193,26 +219,64 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   }
 
   Widget _buildTerminos(BuildContext context) {
+    if (!RevenueCatConfig.pagosHabilitados) {
+      return Text(
+        'MVP gratuito activo. El pago Premium se activara cuando Stripe, App Store y Google Play esten completamente verificados.',
+        style: TextStyle(color: Colors.white.withAlpha(150), fontSize: 11),
+        textAlign: TextAlign.center,
+      );
+    }
+
+    final texto =
+        kIsWeb
+            ? 'Pago seguro con Stripe. Al suscribirte aceptas los Términos de Uso y la Política de Privacidad. La suscripción se renueva automáticamente.'
+            : 'Pago gestionado por App Store o Google Play. Al suscribirte aceptas los Términos de Uso y la Política de Privacidad. La suscripción se renueva automáticamente.';
+
     return Text(
-      'Al suscribirte aceptas los Términos de Uso y la Política de Privacidad. '
-      'La suscripción se renueva automáticamente.',
+      texto,
       style: TextStyle(color: Colors.white.withAlpha(150), fontSize: 11),
       textAlign: TextAlign.center,
     );
   }
 
+  void _mostrarAvisoMvp() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Premium se activara en la fase final. Ya puedes probar el acceso gratuito.',
+        ),
+        backgroundColor: AppColors.textTertiary,
+      ),
+    );
+  }
+
   Future<void> _comprar() async {
-    final exito = _anualSeleccionado
-        ? await ref.read(suscripcionNotifierProvider.notifier).comprarAnual()
-        : await ref.read(suscripcionNotifierProvider.notifier).comprarMensual();
+    final exito =
+        _anualSeleccionado
+            ? await ref
+                .read(suscripcionNotifierProvider.notifier)
+                .comprarAnual()
+            : await ref
+                .read(suscripcionNotifierProvider.notifier)
+                .comprarMensual();
 
     if (!mounted) return;
     if (exito) {
-      context.pop();
+      if (!kIsWeb) context.pop();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('¡Bienvenido a Premium!'),
           backgroundColor: AppColors.success,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            ref.read(suscripcionNotifierProvider.notifier).ultimoErrorPago ??
+                'No se pudo iniciar el pago. Revisa la configuracion.',
+          ),
+          backgroundColor: AppColors.textTertiary,
         ),
       );
     }
@@ -225,7 +289,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          exito ? 'Compras restauradas correctamente' : 'No se encontraron compras',
+          exito
+              ? 'Compras restauradas correctamente'
+              : 'No se encontraron compras',
         ),
         backgroundColor: exito ? AppColors.success : AppColors.textTertiary,
       ),

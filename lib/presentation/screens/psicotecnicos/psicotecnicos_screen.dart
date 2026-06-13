@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/repositories/contenido_repository.dart';
+import '../../../data/repositories/progreso_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/error_widget.dart';
 import '../../widgets/common/loading_widget.dart';
@@ -9,16 +10,17 @@ import '../../widgets/common/premium_lock_widget.dart';
 
 final _psicotecnicosProvider = FutureProvider.autoDispose
     .family<List<Map<String, dynamic>>, String>((ref, oposicionId) async {
-  final supabase = ref.watch(supabaseClientProvider);
-  return ContenidoRepository(supabase).obtenerPsicotecnicos(oposicionId);
-});
+      final supabase = ref.watch(supabaseClientProvider);
+      return ContenidoRepository(supabase).obtenerPsicotecnicos(oposicionId);
+    });
 
 class PsicotecnicosScreen extends ConsumerStatefulWidget {
   const PsicotecnicosScreen({super.key, required this.oposicionId});
   final String oposicionId;
 
   @override
-  ConsumerState<PsicotecnicosScreen> createState() => _PsicotecnicosScreenState();
+  ConsumerState<PsicotecnicosScreen> createState() =>
+      _PsicotecnicosScreenState();
 }
 
 class _PsicotecnicosScreenState extends ConsumerState<PsicotecnicosScreen> {
@@ -32,13 +34,29 @@ class _PsicotecnicosScreenState extends ConsumerState<PsicotecnicosScreen> {
     setState(() => _elegida = opcion);
   }
 
-  void _confirmar(Map<String, dynamic> pregunta) {
+  Future<void> _confirmar(Map<String, dynamic> pregunta) async {
     if (_elegida == null || _confirmada) return;
     final correcta = _elegida == pregunta['respuesta_correcta'];
     setState(() {
       _confirmada = true;
       if (correcta) _aciertos++;
     });
+    final userId = ref.read(usuarioActualProvider)?.id;
+    final referenciaId = pregunta['id']?.toString();
+    if (userId == null || referenciaId == null || referenciaId.isEmpty) return;
+    try {
+      await ProgresoRepository(
+        ref.read(supabaseClientProvider),
+      ).registrarResultadoEjercicio(
+        userId: userId,
+        tipo: 'psicotecnico',
+        referenciaId: referenciaId,
+        correcto: correcta,
+        respuestaDada: _elegida,
+      );
+    } catch (_) {
+      // El ejercicio sigue funcionando aunque falle el registro estadistico.
+    }
   }
 
   void _siguiente(List<Map<String, dynamic>> lista) {
@@ -57,31 +75,32 @@ class _PsicotecnicosScreenState extends ConsumerState<PsicotecnicosScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text('Ejercicio completado'),
-        content: Text('Has acertado $_aciertos de $total ejercicios.'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            child: const Text('Volver'),
+      builder:
+          (_) => AlertDialog(
+            title: const Text('Ejercicio completado'),
+            content: Text('Has acertado $_aciertos de $total ejercicios.'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                },
+                child: const Text('Volver'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _indice = 0;
+                    _elegida = null;
+                    _confirmada = false;
+                    _aciertos = 0;
+                  });
+                },
+                child: const Text('Repetir'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                _indice = 0;
-                _elegida = null;
-                _confirmada = false;
-                _aciertos = 0;
-              });
-            },
-            child: const Text('Repetir'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -100,15 +119,23 @@ class _PsicotecnicosScreenState extends ConsumerState<PsicotecnicosScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.psychology_outlined, size: 64, color: AppColors.textTertiary),
+                      Icon(
+                        Icons.psychology_outlined,
+                        size: 64,
+                        color: AppColors.textTertiary,
+                      ),
                       SizedBox(height: 12),
-                      Text('No hay psicotécnicos disponibles para esta oposición'),
+                      Text(
+                        'No hay psicotécnicos disponibles para esta oposición',
+                      ),
                     ],
                   ),
                 );
               }
               final pregunta = lista[_indice];
-              final opciones = List<String>.from(pregunta['opciones'] as List? ?? []);
+              final opciones = List<String>.from(
+                pregunta['opciones'] as List? ?? [],
+              );
               final correcta = pregunta['respuesta_correcta'] as String? ?? '';
 
               return Column(
@@ -129,13 +156,21 @@ class _PsicotecnicosScreenState extends ConsumerState<PsicotecnicosScreen> {
                           const SizedBox(height: 16),
                           Text(
                             pregunta['enunciado'] as String? ?? '',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(height: 1.5),
+                            style: Theme.of(
+                              context,
+                            ).textTheme.titleMedium?.copyWith(height: 1.5),
                           ),
                           const SizedBox(height: 24),
-                          ...opciones.map((op) => _buildOpcion(op, correcta, context)),
-                          if (_confirmada && pregunta['explicacion'] != null) ...[
+                          ...opciones.map(
+                            (op) => _buildOpcion(op, correcta, context),
+                          ),
+                          if (_confirmada &&
+                              pregunta['explicacion'] != null) ...[
                             const SizedBox(height: 16),
-                            _buildExplicacion(context, pregunta['explicacion'] as String),
+                            _buildExplicacion(
+                              context,
+                              pregunta['explicacion'] as String,
+                            ),
                           ],
                           const SizedBox(height: 80),
                         ],
@@ -166,7 +201,11 @@ class _PsicotecnicosScreenState extends ConsumerState<PsicotecnicosScreen> {
     };
     return Row(
       children: [
-        Icon(iconos[tipo] ?? Icons.quiz_outlined, color: AppColors.primary, size: 18),
+        Icon(
+          iconos[tipo] ?? Icons.quiz_outlined,
+          color: AppColors.primary,
+          size: 18,
+        ),
         const SizedBox(width: 6),
         Text(
           tipo.toUpperCase(),
@@ -187,8 +226,13 @@ class _PsicotecnicosScreenState extends ConsumerState<PsicotecnicosScreen> {
     Color borderColor = AppColors.border;
     Color bgColor = Colors.transparent;
     if (_confirmada) {
-      if (esCorrecta) { borderColor = AppColors.success; bgColor = AppColors.success.withAlpha(15); }
-      else if (esElegida) { borderColor = AppColors.error; bgColor = AppColors.error.withAlpha(15); }
+      if (esCorrecta) {
+        borderColor = AppColors.success;
+        bgColor = AppColors.success.withAlpha(15);
+      } else if (esElegida) {
+        borderColor = AppColors.error;
+        bgColor = AppColors.error.withAlpha(15);
+      }
     } else if (esElegida) {
       borderColor = AppColors.primary;
       bgColor = AppColors.primary.withAlpha(15);
@@ -207,7 +251,11 @@ class _PsicotecnicosScreenState extends ConsumerState<PsicotecnicosScreen> {
           children: [
             Expanded(child: Text(opcion, style: const TextStyle(height: 1.4))),
             if (_confirmada && esCorrecta)
-              const Icon(Icons.check_circle, color: AppColors.success, size: 20),
+              const Icon(
+                Icons.check_circle,
+                color: AppColors.success,
+                size: 20,
+              ),
             if (_confirmada && esElegida && !esCorrecta)
               const Icon(Icons.cancel, color: AppColors.error, size: 20),
           ],
@@ -227,7 +275,13 @@ class _PsicotecnicosScreenState extends ConsumerState<PsicotecnicosScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Explicación', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+          const Text(
+            'Explicación',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
           const SizedBox(height: 6),
           Text(explicacion, style: const TextStyle(height: 1.5)),
         ],
@@ -235,7 +289,10 @@ class _PsicotecnicosScreenState extends ConsumerState<PsicotecnicosScreen> {
     );
   }
 
-  Widget _buildBotones(List<Map<String, dynamic>> lista, Map<String, dynamic> pregunta) {
+  Widget _buildBotones(
+    List<Map<String, dynamic>> lista,
+    Map<String, dynamic> pregunta,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
@@ -244,23 +301,31 @@ class _PsicotecnicosScreenState extends ConsumerState<PsicotecnicosScreen> {
       ),
       child: SizedBox(
         width: double.infinity,
-        child: _confirmada
-            ? ElevatedButton(
-                onPressed: () => _siguiente(lista),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child:
+            _confirmada
+                ? ElevatedButton(
+                  onPressed: () => _siguiente(lista),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    _indice < lista.length - 1 ? 'Siguiente' : 'Ver resultado',
+                  ),
+                )
+                : ElevatedButton(
+                  onPressed:
+                      _elegida != null ? () => _confirmar(pregunta) : null,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('Confirmar'),
                 ),
-                child: Text(_indice < lista.length - 1 ? 'Siguiente' : 'Ver resultado'),
-              )
-            : ElevatedButton(
-                onPressed: _elegida != null ? () => _confirmar(pregunta) : null,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Confirmar'),
-              ),
       ),
     );
   }

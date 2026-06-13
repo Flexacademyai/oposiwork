@@ -122,8 +122,13 @@ Deno.serve(async (req) => {
       .insert({ usuario_id: user.id, pdf_id: pdfId })
 
     if (insertError) {
-      return new Response(JSON.stringify({ error: 'Error al registrar la descarga' }), {
-        status: 500,
+      const esDescargaDuplicada = insertError.code === '23505'
+      return new Response(JSON.stringify({
+        error: esDescargaDuplicada
+          ? 'Ya descargaste este PDF anteriormente'
+          : 'Error al registrar la descarga',
+      }), {
+        status: esDescargaDuplicada ? 409 : 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -134,6 +139,12 @@ Deno.serve(async (req) => {
       .createSignedUrl(pdf.storage_path, 60)
 
     if (urlError || !signedUrl) {
+      await supabase
+        .from('descargas_pdf')
+        .delete()
+        .eq('usuario_id', user.id)
+        .eq('pdf_id', pdfId)
+
       return new Response(JSON.stringify({ error: 'Error generando URL de descarga' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

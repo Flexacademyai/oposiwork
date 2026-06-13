@@ -2,15 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/repositories/contenido_repository.dart';
+import '../../../data/repositories/progreso_repository.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/suscripcion_provider.dart';
 import '../../widgets/common/error_widget.dart';
 import '../../widgets/common/loading_widget.dart';
+import '../../widgets/common/premium_lock_widget.dart';
 
 final _contenidoProvider = FutureProvider.autoDispose
     .family<Map<String, dynamic>?, (String, String)>((ref, args) async {
-  final supabase = ref.watch(supabaseClientProvider);
-  return ContenidoRepository(supabase).obtenerContenidoTema(args.$1, args.$2);
-});
+      final supabase = ref.watch(supabaseClientProvider);
+      return ContenidoRepository(
+        supabase,
+      ).obtenerContenidoTema(args.$1, args.$2);
+    });
 
 class TemaDetailScreen extends ConsumerStatefulWidget {
   const TemaDetailScreen({
@@ -29,6 +34,7 @@ class TemaDetailScreen extends ConsumerStatefulWidget {
 class _TemaDetailScreenState extends ConsumerState<TemaDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _guardandoProgreso = false;
 
   @override
   void initState() {
@@ -44,14 +50,28 @@ class _TemaDetailScreenState extends ConsumerState<TemaDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    final resumenAsync = ref.watch(_contenidoProvider((widget.temaId, 'resumen')));
+    final resumenAsync = ref.watch(
+      _contenidoProvider((widget.temaId, 'resumen')),
+    );
+    final esPremiumLocal = ref.watch(esPremiumProvider);
+    final esPremium = ref
+        .watch(tieneEntitlementPremiumProvider)
+        .when(
+          data: (value) => value || esPremiumLocal,
+          loading: () => esPremiumLocal,
+          error: (_, __) => esPremiumLocal,
+        );
 
     return Scaffold(
       appBar: AppBar(
         title: resumenAsync.when(
           data: (data) {
             final titulo = data?['contenido']?['titulo'] as String?;
-            return Text(titulo ?? 'Tema', maxLines: 1, overflow: TextOverflow.ellipsis);
+            return Text(
+              titulo ?? 'Tema',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            );
           },
           loading: () => const Text('Cargando...'),
           error: (_, __) => const Text('Tema'),
@@ -65,15 +85,66 @@ class _TemaDetailScreenState extends ConsumerState<TemaDetailScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      floatingActionButton:
+          esPremium
+              ? FloatingActionButton.extended(
+                onPressed: _guardandoProgreso ? null : _marcarTemaCompletado,
+                icon:
+                    _guardandoProgreso
+                        ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                        : const Icon(Icons.check_rounded),
+                label: const Text('Completado'),
+              )
+              : null,
+      body: Stack(
         children: [
-          _TabResumen(temaId: widget.temaId),
-          _TabArticulos(temaId: widget.temaId),
-          _TabConceptos(temaId: widget.temaId),
+          TabBarView(
+            controller: _tabController,
+            children: [
+              _TabResumen(temaId: widget.temaId),
+              _TabArticulos(temaId: widget.temaId),
+              _TabConceptos(temaId: widget.temaId),
+            ],
+          ),
+          PremiumLockWidget(child: const SizedBox.expand()),
         ],
       ),
     );
+  }
+
+  Future<void> _marcarTemaCompletado() async {
+    final userId = ref.read(usuarioActualProvider)?.id;
+    if (userId == null) return;
+    setState(() => _guardandoProgreso = true);
+    try {
+      final repo = ProgresoRepository(ref.read(supabaseClientProvider));
+      await repo.actualizarProgresoTema(
+        userId: userId,
+        temaId: widget.temaId,
+        porcentaje: 100,
+        tiempoMinutos: 10,
+      );
+      await repo.iniciarSesionEstudio(
+        userId: userId,
+        oposicionId: widget.oposicionId,
+        tipoActividad: 'temario',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tema marcado como completado')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se ha podido guardar el progreso')),
+      );
+    } finally {
+      if (mounted) setState(() => _guardandoProgreso = false);
+    }
   }
 }
 
@@ -120,7 +191,8 @@ class _TabArticulos extends ConsumerWidget {
     return async.when(
       data: (data) {
         if (data == null) return _sinContenido('artículos');
-        final articulos = (data['contenido']?['articulos_clave'] as List?) ?? [];
+        final articulos =
+            (data['contenido']?['articulos_clave'] as List?) ?? [];
         if (articulos.isEmpty) return _sinContenido('artículos');
         return ListView.separated(
           padding: const EdgeInsets.all(16),
@@ -137,7 +209,10 @@ class _TabArticulos extends ConsumerWidget {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withAlpha(20),
                             borderRadius: BorderRadius.circular(6),
@@ -155,9 +230,8 @@ class _TabArticulos extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             art['ley'] as String? ?? '',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AppColors.textSecondary),
                           ),
                         ),
                       ],
@@ -165,7 +239,9 @@ class _TabArticulos extends ConsumerWidget {
                     const SizedBox(height: 8),
                     Text(
                       art['contenido'] as String? ?? '',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(height: 1.5),
                     ),
                   ],
                 ),
@@ -225,7 +301,9 @@ class _TabConceptos extends ConsumerWidget {
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
                         conceptos[i] as String? ?? '',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.copyWith(height: 1.5),
                       ),
                     ),
                   ),
@@ -246,7 +324,11 @@ Widget _sinContenido(String tipo) {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.hourglass_empty_rounded, size: 48, color: AppColors.textTertiary),
+        const Icon(
+          Icons.hourglass_empty_rounded,
+          size: 48,
+          color: AppColors.textTertiary,
+        ),
         const SizedBox(height: 12),
         Text('No hay $tipo disponibles aún'),
       ],

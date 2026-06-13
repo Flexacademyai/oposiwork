@@ -5,7 +5,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/oposiciones_provider.dart';
+import '../../providers/suscripcion_provider.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/error_widget.dart';
 import '../../../data/models/convocatoria.dart';
@@ -18,7 +20,9 @@ class OposicionDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final oposicionAsync = ref.watch(oposicionProvider(oposicionId));
-    final convocatoriaAsync = ref.watch(convocatoriaActualProvider(oposicionId));
+    final convocatoriaAsync = ref.watch(
+      convocatoriaActualProvider(oposicionId),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -38,16 +42,22 @@ class OposicionDetailScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildCabecera(context, oposicion.nombre, oposicion.cuerpo),
+                const SizedBox(height: 12),
+                _buildSeguimiento(context, ref, oposicionId),
                 const SizedBox(height: 24),
                 convocatoriaAsync.when(
-                  data: (conv) => conv != null
-                      ? _buildConvocatoria(context, conv)
-                      : _buildSinConvocatoria(context),
+                  data:
+                      (conv) =>
+                          conv != null
+                              ? _buildConvocatoria(context, conv)
+                              : _buildSinConvocatoria(context),
                   loading: () => const LoadingWidget(),
                   error: (_, __) => const SizedBox.shrink(),
                 ),
+                const SizedBox(height: 16),
+                _buildPropuestaPremium(context),
                 const SizedBox(height: 24),
-                _buildAccionesPremium(context, oposicionId),
+                _buildAccionesPremium(context, ref, oposicionId),
               ],
             ),
           );
@@ -75,15 +85,77 @@ class OposicionDetailScreen extends ConsumerWidget {
         Text(nombre, style: Theme.of(context).textTheme.headlineMedium),
         Text(
           cuerpo,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: AppColors.textSecondary,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
         ),
       ],
     );
   }
 
+  Widget _buildSeguimiento(
+    BuildContext context,
+    WidgetRef ref,
+    String oposicionId,
+  ) {
+    final estaAutenticado = ref.watch(estaAutenticadoProvider);
+    if (!estaAutenticado) {
+      return OutlinedButton.icon(
+        onPressed: () => context.push(AppRoutes.login),
+        icon: const Icon(Icons.notifications_active_outlined, size: 18),
+        label: const Text('Inicia sesion para recibir avisos'),
+      );
+    }
+
+    final seguimientoAsync = ref.watch(
+      usuarioSigueOposicionProvider(oposicionId),
+    );
+
+    return seguimientoAsync.when(
+      data: (siguiendo) {
+        return OutlinedButton.icon(
+          onPressed: () async {
+            await ref
+                .read(seguimientoOposicionControllerProvider)
+                .cambiarSeguimiento(
+                  oposicionId: oposicionId,
+                  seguir: !siguiendo,
+                );
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  !siguiendo
+                      ? 'Recibiras avisos de esta oposicion'
+                      : 'Has dejado de recibir avisos de esta oposicion',
+                ),
+              ),
+            );
+          },
+          icon: Icon(
+            siguiendo
+                ? Icons.notifications_active_rounded
+                : Icons.notifications_none_rounded,
+            size: 18,
+          ),
+          label: Text(siguiendo ? 'Recibiendo avisos' : 'Recibir avisos'),
+        );
+      },
+      loading:
+          () => const SizedBox(
+            height: 40,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
   Widget _buildConvocatoria(BuildContext context, Convocatoria conv) {
+    final diasRestantes = _diasRestantes(conv.fechaFinInstancias);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -113,6 +185,11 @@ class OposicionDetailScreen extends ConsumerWidget {
                 etiqueta: AppStrings.instanciasHasta,
                 valor: _formatearFecha(conv.fechaFinInstancias!),
               ),
+            if (diasRestantes != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: _UrgenciaPlazo(diasRestantes: diasRestantes),
+              ),
             if (conv.fechaExamen != null)
               _InfoRow(
                 icono: Icons.event_rounded,
@@ -126,13 +203,109 @@ class OposicionDetailScreen extends ConsumerWidget {
                 onPressed: () => launchUrl(Uri.parse(conv.urlBoe!)),
                 icon: const Icon(Icons.open_in_new_rounded, size: 16),
                 label: const Text('Ver en BOE'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, 40),
-                ),
+                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 40)),
               ),
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPropuestaPremium(BuildContext context) {
+    final beneficios = [
+      'Temario organizado por temas',
+      'Resumenes y esquemas para estudiar mas rapido',
+      'Tests con explicaciones y referencias',
+      'Flashcards para repasar antes del examen',
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: AppColors.primaryGradient,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(35),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.workspace_premium_rounded,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Prepara esta convocatoria con Premium',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Pasa de leer el BOE a estudiar con metodo.',
+                      style: TextStyle(color: Colors.white.withAlpha(215)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ...beneficios.map(
+            (beneficio) => Padding(
+              padding: const EdgeInsets.only(bottom: 7),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      beneficio,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            onPressed: () => context.push(AppRoutes.suscripcion),
+            icon: const Icon(Icons.lock_open_rounded, size: 18),
+            label: const Text('Desbloquear preparacion completa'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: AppColors.primary,
+              minimumSize: const Size(double.infinity, 48),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -143,11 +316,14 @@ class OposicionDetailScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            const Icon(Icons.info_outline_rounded, color: AppColors.textTertiary),
+            const Icon(
+              Icons.info_outline_rounded,
+              color: AppColors.textTertiary,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'No hay convocatoria abierta actualmente',
+                'Convocatoria pendiente de cargar. La oposicion esta disponible, pero aun no hay fechas oficiales registradas.',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
@@ -157,7 +333,15 @@ class OposicionDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildAccionesPremium(BuildContext context, String id) {
+  Widget _buildAccionesPremium(BuildContext context, WidgetRef ref, String id) {
+    final esPremiumLocal = ref.watch(esPremiumProvider);
+    final esPremium = ref
+        .watch(tieneEntitlementPremiumProvider)
+        .when(
+          data: (value) => value || esPremiumLocal,
+          loading: () => esPremiumLocal,
+          error: (_, __) => esPremiumLocal,
+        );
     final acciones = [
       (
         icono: Icons.menu_book_rounded,
@@ -178,6 +362,13 @@ class OposicionDetailScreen extends ConsumerWidget {
         titulo: 'Tests',
         subtitulo: 'Simulacros de examen',
         ruta: AppRoutes.test.replaceFirst(':id', id),
+        premium: true,
+      ),
+      (
+        icono: Icons.assignment_rounded,
+        titulo: 'Supuestos',
+        subtitulo: 'Casos practicos guiados',
+        ruta: AppRoutes.supuestos.replaceFirst(':id', id),
         premium: true,
       ),
     ];
@@ -206,10 +397,18 @@ class OposicionDetailScreen extends ConsumerWidget {
                 ),
                 title: Text(a.titulo),
                 subtitle: Text(a.subtitulo),
-                trailing: a.premium
-                    ? const Icon(Icons.lock_rounded, color: AppColors.premium, size: 20)
-                    : const Icon(Icons.arrow_forward_ios_rounded, size: 16),
-                onTap: () => context.push(a.ruta),
+                trailing:
+                    a.premium
+                        ? const Icon(
+                          Icons.lock_rounded,
+                          color: AppColors.premium,
+                          size: 20,
+                        )
+                        : const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                onTap:
+                    () => context.push(
+                      a.premium && !esPremium ? AppRoutes.suscripcion : a.ruta,
+                    ),
               ),
             ),
           ),
@@ -222,6 +421,16 @@ class OposicionDetailScreen extends ConsumerWidget {
     return '${fecha.day.toString().padLeft(2, '0')}/'
         '${fecha.month.toString().padLeft(2, '0')}/'
         '${fecha.year}';
+  }
+
+  int? _diasRestantes(DateTime? fechaFin) {
+    if (fechaFin == null) return null;
+
+    final hoy = DateTime.now();
+    final hoySinHora = DateTime(hoy.year, hoy.month, hoy.day);
+    final finSinHora = DateTime(fechaFin.year, fechaFin.month, fechaFin.day);
+    final dias = finSinHora.difference(hoySinHora).inDays;
+    return dias >= 0 ? dias : null;
   }
 }
 
@@ -258,6 +467,49 @@ class _BadgeEstado extends StatelessWidget {
   }
 }
 
+class _UrgenciaPlazo extends StatelessWidget {
+  final int diasRestantes;
+
+  const _UrgenciaPlazo({required this.diasRestantes});
+
+  @override
+  Widget build(BuildContext context) {
+    final texto =
+        diasRestantes == 0
+            ? 'Ultimo dia para presentar instancia'
+            : 'Quedan $diasRestantes dias para presentar instancia';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withAlpha(30),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.warning.withAlpha(80)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.hourglass_bottom_rounded,
+            size: 18,
+            color: AppColors.warning,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              texto,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _InfoRow extends StatelessWidget {
   final IconData icono;
   final String etiqueta;
@@ -279,10 +531,7 @@ class _InfoRow extends StatelessWidget {
         children: [
           Icon(icono, size: 18, color: AppColors.textSecondary),
           const SizedBox(width: 8),
-          Text(
-            '$etiqueta: ',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          Text('$etiqueta: ', style: Theme.of(context).textTheme.bodyMedium),
           Text(
             valor,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(

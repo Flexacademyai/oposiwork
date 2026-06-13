@@ -114,15 +114,20 @@ class ProgresoRepository {
         .from(SupabaseConfig.tablaSesionesEstudio)
         .select('duracion_minutos')
         .eq('usuario_id', userId);
-    final minutos = (sesiones as List)
-        .fold<int>(0, (sum, s) => sum + ((s['duracion_minutos'] as int?) ?? 0));
+    final minutos = (sesiones as List).fold<int>(
+      0,
+      (sum, s) => sum + ((s['duracion_minutos'] as int?) ?? 0),
+    );
 
     final progreso = await _supabase
         .from(SupabaseConfig.tablaProgresoTemas)
         .select('porcentaje_completado')
         .eq('usuario_id', userId);
     final temasConProgreso = (progreso as List).length;
-    final completados = progreso.where((p) => (p['porcentaje_completado'] as int? ?? 0) >= 100).length;
+    final completados =
+        progreso
+            .where((p) => (p['porcentaje_completado'] as int? ?? 0) >= 100)
+            .length;
 
     final racha = await obtenerRachaActual(userId);
 
@@ -133,22 +138,5 @@ class ProgresoRepository {
       'minutos_totales': minutos,
       'puntos_totales': completados * 50,
     };
-  }
-
-  Future<bool> puedeDescargarPdf(String userId, String pdfId) async {
-    final data = await _supabase
-        .from(SupabaseConfig.tablaDescargasPdf)
-        .select('id')
-        .eq('usuario_id', userId)
-        .eq('pdf_id', pdfId)
-        .maybeSingle();
-    return data == null;
-  }
-
-  Future<void> registrarDescargaPdf(String userId, String pdfId) async {
-    await _supabase.from(SupabaseConfig.tablaDescargasPdf).insert({
-      'usuario_id': userId,
-      'pdf_id': pdfId,
-    });
   }
 }

@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/constants/app_strings.dart';
-import '../../../core/security/security_service.dart';
+import '../../../core/security/security_service.dart' as rate_security;
+import '../../../core/services/security_service.dart' as input_security;
 import '../../providers/auth_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -34,24 +35,34 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> _registrar() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final permitido = await SecurityService(
+    final permitido = await rate_security.SecurityService(
       ref.read(supabaseClientProvider),
     ).checkRateLimit('registro');
 
     if (!mounted) return;
     if (!permitido) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Demasiados intentos. Espera un momento.')),
+        const SnackBar(
+          content: Text('Demasiados intentos. Espera un momento.'),
+        ),
       );
       return;
     }
 
-    await ref.read(authNotifierProvider.notifier).registrar(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-      nombre: _nombreController.text.trim(),
-      apellidos: _apellidosController.text.trim(),
-    );
+    await ref
+        .read(authNotifierProvider.notifier)
+        .registrar(
+          email: input_security.SecurityService.normalizarEmail(
+            _emailController.text,
+          ),
+          password: _passwordController.text,
+          nombre: input_security.SecurityService.sanitizarNombre(
+            _nombreController.text,
+          ),
+          apellidos: input_security.SecurityService.sanitizarNombre(
+            _apellidosController.text,
+          ),
+        );
 
     if (!mounted) return;
     final state = ref.read(authNotifierProvider);
@@ -65,12 +76,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         );
         context.go(AppRoutes.login);
       },
-      error: (e, _) => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: AppColors.error,
-        ),
-      ),
+      error:
+          (e, _) => ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString()),
+              backgroundColor: AppColors.error,
+            ),
+          ),
       loading: () {},
     );
   }
@@ -116,8 +128,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         decoration: const InputDecoration(
                           labelText: AppStrings.nombre,
                         ),
-                        validator: (v) =>
-                            v == null || v.isEmpty ? AppStrings.campoRequerido : null,
+                        validator: (v) {
+                          final error = input_security
+                              .SecurityService.validarNombre(v);
+                          if (error == 'Campo requerido') {
+                            return AppStrings.campoRequerido;
+                          }
+                          return error;
+                        },
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -128,6 +146,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         decoration: const InputDecoration(
                           labelText: AppStrings.apellidos,
                         ),
+                        validator:
+                            (v) => input_security.SecurityService.validarNombre(
+                              v,
+                              requerido: false,
+                            ),
                       ),
                     ),
                   ],
@@ -142,8 +165,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return AppStrings.campoRequerido;
-                    if (!v.contains('@')) return AppStrings.emailInvalido;
+                    final error = input_security.SecurityService.validarEmail(
+                      v,
+                    );
+                    if (error == 'Campo requerido') {
+                      return AppStrings.campoRequerido;
+                    }
+                    if (error != null) return AppStrings.emailInvalido;
                     return null;
                   },
                 ),
@@ -161,29 +189,36 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             ? Icons.visibility_outlined
                             : Icons.visibility_off_outlined,
                       ),
-                      onPressed: () =>
-                          setState(() => _ocultarPassword = !_ocultarPassword),
+                      onPressed:
+                          () => setState(
+                            () => _ocultarPassword = !_ocultarPassword,
+                          ),
                     ),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return AppStrings.campoRequerido;
-                    if (v.length < 6) return AppStrings.contrasenaMuyCorta;
+                    final error = input_security
+                        .SecurityService.validarPassword(v);
+                    if (error == 'Campo requerido') {
+                      return AppStrings.campoRequerido;
+                    }
+                    if (error != null) return error;
                     return null;
                   },
                 ),
                 const SizedBox(height: 32),
                 ElevatedButton(
                   onPressed: cargando ? null : _registrar,
-                  child: cargando
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(AppStrings.registrarse),
+                  child:
+                      cargando
+                          ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                          : const Text(AppStrings.registrarse),
                 ),
                 const SizedBox(height: 24),
                 Row(

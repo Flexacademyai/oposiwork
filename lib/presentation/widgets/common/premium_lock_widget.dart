@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/suscripcion_provider.dart';
 
 class PremiumLockWidget extends ConsumerWidget {
   final Widget child;
@@ -18,9 +19,18 @@ class PremiumLockWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final esPremium = ref.watch(esPremiumProvider);
+    final esPremiumLocal = ref.watch(esPremiumProvider);
+    final premiumAsync = ref.watch(tieneEntitlementPremiumProvider);
 
-    if (esPremium || !mostrarBloqueo) return child;
+    if (!mostrarBloqueo) return child;
+
+    final esPremium = premiumAsync.when(
+      data: (premium) => premium || esPremiumLocal,
+      loading: () => esPremiumLocal,
+      error: (_, __) => esPremiumLocal,
+    );
+
+    if (esPremium) return child;
 
     return Stack(
       children: [

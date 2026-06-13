@@ -11,17 +11,20 @@ import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/auth/register_screen.dart';
 import 'presentation/screens/home/home_screen.dart';
 import 'presentation/screens/oposiciones/oposiciones_screen.dart';
+import 'presentation/screens/oposiciones/cobertura_screen.dart';
 import 'presentation/screens/oposiciones/oposicion_detail_screen.dart';
 import 'presentation/screens/temario/temario_screen.dart';
 import 'presentation/screens/temario/tema_detail_screen.dart';
 import 'presentation/screens/flashcards/flashcards_screen.dart';
 import 'presentation/screens/tests/test_screen.dart';
 import 'presentation/screens/tests/resultado_test_screen.dart';
+import 'presentation/screens/supuestos/supuestos_screen.dart';
 import 'presentation/screens/psicotecnicos/psicotecnicos_screen.dart';
 import 'presentation/screens/progreso/progreso_screen.dart';
 import 'presentation/screens/estudio/plan_estudio_screen.dart';
 import 'presentation/screens/estudio/alarmas_screen.dart';
 import 'presentation/screens/perfil/perfil_screen.dart';
+import 'presentation/screens/notificaciones/notificaciones_screen.dart';
 import 'presentation/screens/suscripcion/paywall_screen.dart';
 import 'presentation/screens/simulacro/simulacro_screen.dart';
 import 'presentation/screens/simulacro/resultado_simulacro_screen.dart';
@@ -40,32 +43,30 @@ final routerProvider = Provider<GoRouter>((ref) {
         AppRoutes.register,
         AppRoutes.onboarding,
       ];
-      final enRutaPublica = rutasPublicas.any(
-        (r) => state.matchedLocation.startsWith(r),
-      );
+      final enRutaPublica = rutasPublicas.contains(state.matchedLocation);
+      final enRutaAuth =
+          state.matchedLocation == AppRoutes.login ||
+          state.matchedLocation == AppRoutes.register;
+
+      if (estaAuth && enRutaAuth) return AppRoutes.home;
       if (!estaAuth && !enRutaPublica) return AppRoutes.login;
       return null;
     },
     routes: [
-      GoRoute(
-        path: AppRoutes.splash,
-        builder: (_, __) => const SplashScreen(),
-      ),
+      GoRoute(path: AppRoutes.splash, builder: (_, __) => const SplashScreen()),
       GoRoute(
         path: AppRoutes.onboarding,
         builder: (_, __) => const OnboardingScreen(),
       ),
-      GoRoute(
-        path: AppRoutes.login,
-        builder: (_, __) => const LoginScreen(),
-      ),
+      GoRoute(path: AppRoutes.login, builder: (_, __) => const LoginScreen()),
       GoRoute(
         path: AppRoutes.register,
         builder: (_, __) => const RegisterScreen(),
       ),
+      GoRoute(path: AppRoutes.home, builder: (_, __) => const HomeScreen()),
       GoRoute(
-        path: AppRoutes.home,
-        builder: (_, __) => const HomeScreen(),
+        path: AppRoutes.cobertura,
+        builder: (_, __) => const CoberturaScreen(),
       ),
 
       // Oposiciones + rutas anidadas por oposición
@@ -75,39 +76,42 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: ':id',
-            builder: (_, state) => OposicionDetailScreen(
-              oposicionId: state.pathParameters['id']!,
-            ),
+            builder:
+                (_, state) => OposicionDetailScreen(
+                  oposicionId: state.pathParameters['id']!,
+                ),
             routes: [
               // Temario
               GoRoute(
                 path: 'temario',
-                builder: (_, state) => TemarioScreen(
-                  oposicionId: state.pathParameters['id']!,
-                ),
+                builder:
+                    (_, state) =>
+                        TemarioScreen(oposicionId: state.pathParameters['id']!),
                 routes: [
                   GoRoute(
                     path: ':temaId',
-                    builder: (_, state) => TemaDetailScreen(
-                      oposicionId: state.pathParameters['id']!,
-                      temaId: state.pathParameters['temaId']!,
-                    ),
+                    builder:
+                        (_, state) => TemaDetailScreen(
+                          oposicionId: state.pathParameters['id']!,
+                          temaId: state.pathParameters['temaId']!,
+                        ),
                   ),
                 ],
               ),
               // Flashcards
               GoRoute(
                 path: 'flashcards',
-                builder: (_, state) => FlashcardsScreen(
-                  oposicionId: state.pathParameters['id']!,
-                ),
+                builder:
+                    (_, state) => FlashcardsScreen(
+                      oposicionId: state.pathParameters['id']!,
+                    ),
               ),
               // Test
               GoRoute(
                 path: 'test',
-                builder: (_, state) => TestScreen(
-                  oposicionId: state.pathParameters['id']!,
-                ),
+                builder:
+                    (_, state) =>
+                        TestScreen(oposicionId: state.pathParameters['id']!),
                 routes: [
                   GoRoute(
                     path: 'resultado',
@@ -123,24 +127,32 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
               // Psicotécnicos
               GoRoute(
+                path: 'supuestos',
+                builder:
+                    (_, state) => SupuestosScreen(
+                      oposicionId: state.pathParameters['id']!,
+                    ),
+              ),
+              GoRoute(
                 path: 'psicotecnicos',
-                builder: (_, state) => PsicotecnicosScreen(
-                  oposicionId: state.pathParameters['id']!,
-                ),
+                builder:
+                    (_, state) => PsicotecnicosScreen(
+                      oposicionId: state.pathParameters['id']!,
+                    ),
               ),
               // Chat IA
               GoRoute(
                 path: 'chat',
-                builder: (_, state) => ChatScreen(
-                  oposicionId: state.pathParameters['id']!,
-                ),
+                builder:
+                    (_, state) =>
+                        ChatScreen(oposicionId: state.pathParameters['id']!),
               ),
               // Voz IA
               GoRoute(
                 path: 'voz',
-                builder: (_, state) => VozScreen(
-                  oposicionId: state.pathParameters['id']!,
-                ),
+                builder:
+                    (_, state) =>
+                        VozScreen(oposicionId: state.pathParameters['id']!),
               ),
             ],
           ),
@@ -183,9 +195,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       // Perfil
+      GoRoute(path: AppRoutes.perfil, builder: (_, __) => const PerfilScreen()),
       GoRoute(
-        path: AppRoutes.perfil,
-        builder: (_, __) => const PerfilScreen(),
+        path: AppRoutes.notificaciones,
+        builder: (_, __) => const NotificacionesScreen(),
       ),
 
       // Suscripción
@@ -194,15 +207,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const PaywallScreen(),
       ),
     ],
-    errorBuilder: (context, state) => Scaffold(
-      appBar: AppBar(title: const Text('Error')),
-      body: Center(
-        child: Text(
-          'Ruta no encontrada: ${state.uri}',
-          style: const TextStyle(color: Colors.red),
+    errorBuilder:
+        (context, state) => Scaffold(
+          appBar: AppBar(title: const Text('Error')),
+          body: Center(
+            child: Text(
+              'Ruta no encontrada: ${state.uri}',
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
         ),
-      ),
-    ),
   );
 });
 

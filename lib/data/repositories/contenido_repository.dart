@@ -3,6 +3,7 @@ import '../models/tema.dart';
 import '../models/temario_pdf.dart';
 import '../models/flashcard.dart';
 import '../models/pregunta_test.dart';
+import '../models/supuesto.dart';
 import '../../config/supabase_config.dart';
 
 class ContenidoRepository {
@@ -94,6 +95,17 @@ class ContenidoRepository {
         .eq('oposicion_id', oposicionId)
         .limit(limite);
     return (data as List).map((e) => PreguntaTest.fromMap(e)).toList();
+  }
+
+  Future<List<Supuesto>> obtenerSupuestosPorOposicion(
+    String oposicionId,
+  ) async {
+    final data = await _supabase
+        .from(SupabaseConfig.tablaSupuestos)
+        .select()
+        .eq('oposicion_id', oposicionId)
+        .order('dificultad');
+    return (data as List).map((e) => Supuesto.fromMap(e)).toList();
   }
 
   Future<void> actualizarProgresoFlashcard(Flashcard flashcard) async {
@@ -236,7 +248,15 @@ class ContenidoRepository {
 
     final ids =
         (progreso as List).map((e) => e['flashcard_id'] as String).toList();
-    if (ids.isEmpty) return [];
+    if (ids.isEmpty) {
+      final nuevas = await _supabase
+          .from(SupabaseConfig.tablaFlashcards)
+          .select('*, temas!inner(oposicion_id)')
+          .eq('temas.oposicion_id', oposicionId)
+          .order('dificultad')
+          .limit(20);
+      return (nuevas as List).map((e) => Flashcard.fromMap(e)).toList();
+    }
 
     final data = await _supabase
         .from(SupabaseConfig.tablaFlashcards)

@@ -55,12 +55,16 @@ class HomeScreen extends ConsumerWidget {
               ),
               Text(
                 '¿Qué estudias hoy?',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
               ),
             ],
           ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.notifications_none_rounded),
+          onPressed: () => context.push(AppRoutes.notificaciones),
         ),
         IconButton(
           icon: const Icon(Icons.person_outline_rounded),
@@ -88,17 +92,20 @@ class HomeScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               rachaAsync.when(
-                data: (racha) => Text(
-                  '$racha días de racha',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: Colors.white,
-                  ),
-                ),
-                loading: () => const CircularProgressIndicator(color: Colors.white),
-                error: (_, __) => const Text(
-                  '0 días de racha',
-                  style: TextStyle(color: Colors.white, fontSize: 18),
-                ),
+                data:
+                    (racha) => Text(
+                      '$racha días de racha',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.headlineSmall?.copyWith(color: Colors.white),
+                    ),
+                loading:
+                    () => const CircularProgressIndicator(color: Colors.white),
+                error:
+                    (_, __) => const Text(
+                      '0 días de racha',
+                      style: TextStyle(color: Colors.white, fontSize: 18),
+                    ),
               ),
               Text(
                 '¡Sigue así!',
@@ -132,48 +139,53 @@ class HomeScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         oposicionesAsync.when(
-          data: (oposiciones) => ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: oposiciones.take(3).length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final oposicion = oposiciones[index];
-              return Card(
-                child: ListTile(
-                  contentPadding: const EdgeInsets.all(16),
-                  leading: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight.withAlpha(30),
-                      borderRadius: BorderRadius.circular(12),
+          data:
+              (oposiciones) => ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: oposiciones.take(3).length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final oposicion = oposiciones[index];
+                  return Card(
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.all(16),
+                      leading: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight.withAlpha(30),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.gavel_rounded,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      title: Text(
+                        oposicion.nombre,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      subtitle: Text(
+                        '${oposicion.administracion} · ${oposicion.nivel}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      trailing: const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 16,
+                        color: AppColors.textTertiary,
+                      ),
+                      onTap:
+                          () => context.push(
+                            AppRoutes.oposicionDetail.replaceFirst(
+                              ':id',
+                              oposicion.id,
+                            ),
+                          ),
                     ),
-                    child: const Icon(
-                      Icons.gavel_rounded,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  title: Text(
-                    oposicion.nombre,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  subtitle: Text(
-                    '${oposicion.administracion} · ${oposicion.nivel}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  trailing: const Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 16,
-                    color: AppColors.textTertiary,
-                  ),
-                  onTap: () => context.push(
-                    AppRoutes.oposicionDetail.replaceFirst(':id', oposicion.id),
-                  ),
-                ),
-              );
-            },
-          ),
+                  );
+                },
+              ),
           loading: () => const LoadingWidget(),
           error: (e, _) => AppErrorWidget(mensaje: e.toString()),
         ),
