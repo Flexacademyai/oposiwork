@@ -2,9 +2,9 @@ name: CI/CD Oposiwork
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, develop]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 env:
   FLUTTER_VERSION: '3.32.0'
@@ -40,13 +40,13 @@ jobs:
         run: flutter test --coverage
 
   # ─────────────────────────────────────────────
-  # Flutter Web: build
+  # Flutter Web: build + preparar estructura SEO
   # ─────────────────────────────────────────────
   flutter-web-build:
     name: Flutter Web — build
     runs-on: ubuntu-latest
     needs: flutter-check
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
 
     steps:
       - uses: actions/checkout@v4
@@ -63,21 +63,35 @@ jobs:
 
       - name: Build web
         run: |
-          flutter build web --release --base-href / \
+          flutter build web --release --base-href /app/ \
             --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
             --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} \
             --dart-define=REVENUECAT_API_KEY_IOS=${{ secrets.REVENUECAT_API_KEY_IOS }} \
-            --dart-define=REVENUECAT_API_KEY_ANDROID=${{ secrets.REVENUECAT_API_KEY_ANDROID }} \
-            --dart-define=FLUTTER_WEB_CANVASKIT_URL=/canvaskit/
+            --dart-define=REVENUECAT_API_KEY_ANDROID=${{ secrets.REVENUECAT_API_KEY_ANDROID }}
 
-      - name: Copiar configuración Vercel al artefacto web
-        run: cp vercel.json build/web/vercel.json
+      - name: Preparar estructura de despliegue
+        run: |
+          mkdir -p build/seo/app
+          # Flutter web va en /app/
+          cp -r build/web/* build/seo/app/
+          # Eliminar archivos extra del build copiados desde web/ que no pertenecen a /app/
+          rm -rf build/seo/app/landing build/seo/app/api build/seo/app/vercel.json build/seo/app/.vercel build/seo/app/.gitignore build/seo/app/robots.txt build/seo/app/sitemap.xml
+          # Landing page en la raíz
+          cp -r web/landing/. build/seo/
+          # Recursos compartidos en la raíz
+          cp build/web/icons build/seo/icons -r
+          cp build/web/favicon.png build/seo/favicon.png
+          cp build/web/manifest.json build/seo/manifest.json
+          # API (Vercel Serverless Functions)
+          cp -r api build/seo/api
+          # vercel.json raíz
+          cp vercel.json build/seo/vercel.json
 
       - name: Subir artefacto web
         uses: actions/upload-artifact@v4
         with:
-          name: flutter-web
-          path: build/web/
+          name: seo-deploy
+          path: build/seo/
           retention-days: 7
 
   # ─────────────────────────────────────────────
@@ -87,7 +101,7 @@ jobs:
     name: Supabase — funciones y migraciones
     runs-on: ubuntu-latest
     needs: flutter-check
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
 
     steps:
       - uses: actions/checkout@v4
@@ -110,6 +124,7 @@ jobs:
           supabase functions deploy chat-rag --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
           supabase functions deploy monitor-boe --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
           supabase functions deploy crear-sesion-voz --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          supabase functions deploy send-notifications --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
@@ -120,7 +135,7 @@ jobs:
     name: Vercel — deploy web
     runs-on: ubuntu-latest
     needs: flutter-web-build
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
 
     steps:
       - uses: actions/checkout@v4
@@ -128,8 +143,8 @@ jobs:
       - name: Descargar artefacto web
         uses: actions/download-artifact@v4
         with:
-          name: flutter-web
-          path: build/web
+          name: seo-deploy
+          path: build/seo
 
       - name: Deploy a Vercel
         uses: amondnet/vercel-action@v25
@@ -137,5 +152,5 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: build/web
+          working-directory: build/seo
           vercel-args: '--prod'

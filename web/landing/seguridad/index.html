@@ -1,0 +1,50 @@
+﻿<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seguridad - Oposiwork</title>
+  <meta name="description" content="Medidas de seguridad aplicadas en Oposiwork para proteger cuentas, datos y pagos.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://www.oposiwork.com/seguridad/">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/"><img src="/icons/Icon-192.png" alt="">Oposiwork</a>
+    <nav class="nav-links"><a href="/app/login" class="button primary">Entrar</a></nav>
+  </header>
+  <main class="section legal-page">
+    <div class="section-header">
+      <h1>Seguridad</h1>
+      <p>Medidas tecnicas y organizativas aplicadas en Oposiwork.</p>
+    </div>
+    <article class="legal-card">
+      <h2>Proteccion de datos</h2>
+      <ul>
+        <li>Row Level Security en tablas de Supabase con datos de usuario.</li>
+        <li>Validacion de formularios en cliente y funciones de servidor.</li>
+        <li>Operaciones sensibles mediante Edge Functions, no desde el cliente.</li>
+        <li>Claves de servicio y secretos solo en variables de entorno de backend.</li>
+      </ul>
+
+      <h2>Proteccion web</h2>
+      <ul>
+        <li>HTTPS obligatorio con HSTS.</li>
+        <li>Content Security Policy para limitar scripts, conexiones y frames.</li>
+        <li>Proteccion frente a clickjacking mediante frame-ancestors y X-Frame-Options.</li>
+        <li>Cabeceras de permisos para bloquear camara, geolocalizacion y APIs no usadas.</li>
+      </ul>
+
+      <h2>Pagos</h2>
+      <p>Los pagos web se redirigen a Stripe. Oposiwork no almacena numeros completos de tarjeta. En iOS y Android el pago se gestiona por App Store y Google Play.</p>
+
+      <h2>Descargas</h2>
+      <p>Los PDFs premium se entregan mediante URL firmada de corta duracion y control de descarga en servidor.</p>
+
+      <h2>Reportar vulnerabilidades</h2>
+      <p>Escribe a <a href="mailto:soporte@oposiwork.com">soporte@oposiwork.com</a> con una descripcion clara, impacto estimado y pasos de reproduccion.</p>
+    </article>
+  </main>
+</body>
+</html>
