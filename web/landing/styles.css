@@ -295,6 +295,24 @@ a {
   text-decoration: none;
 }
 
+.breadcrumb {
+  max-width: 1040px;
+  margin: 0 auto 18px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.breadcrumb a {
+  color: var(--blue);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.section-note {
+  text-align: center;
+  margin-top: 28px;
+}
+
 .badge {
   display: inline-flex;
   margin-top: 14px;
