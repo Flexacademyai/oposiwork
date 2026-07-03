@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../config/captcha_config.dart';
+import '../../../core/captcha/captcha.dart';
 import '../../../core/security/security_service.dart' as rate_security;
 import '../../../core/services/security_service.dart' as input_security;
 import '../../providers/auth_provider.dart';
@@ -20,6 +22,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _ocultarPassword = true;
+  String? _captchaToken;
+  CaptchaHandle? _captcha;
+
+  @override
+  void initState() {
+    super.initState();
+    if (CaptchaConfig.activoEnWeb) {
+      _captcha = construirCaptcha(
+        onToken: (t) {
+          if (mounted) setState(() => _captchaToken = t);
+        },
+        onExpirado: () {
+          if (mounted) setState(() => _captchaToken = null);
+        },
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -45,6 +64,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
+    if (CaptchaConfig.activoEnWeb && (_captchaToken?.isEmpty ?? true)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Completa la verificación de seguridad para continuar.'),
+        ),
+      );
+      return;
+    }
+
     await ref
         .read(authNotifierProvider.notifier)
         .iniciarSesion(
@@ -52,19 +80,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             _emailController.text,
           ),
           password: _passwordController.text,
+          captchaToken: _captchaToken,
         );
 
     if (!mounted) return;
     final state = ref.read(authNotifierProvider);
     state.when(
       data: (_) => context.go(AppRoutes.home),
-      error:
-          (e, _) => ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(AppStrings.errorCredenciales),
-              backgroundColor: AppColors.error,
-            ),
+      error: (e, _) {
+        // El token de captcha es de un solo uso: regenerarlo tras el fallo.
+        _captcha?.reset();
+        _captchaToken = null;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppStrings.errorCredenciales),
+            backgroundColor: AppColors.error,
           ),
+        );
+      },
       loading: () {},
     );
   }
@@ -91,6 +124,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 _buildHeader(context),
                 const SizedBox(height: 48),
                 _buildFormulario(cargando),
+                if (_captcha != null) ...[
+                  const SizedBox(height: 16),
+                  _captcha!.widget,
+                ],
                 const SizedBox(height: 24),
                 _buildBotonesAccion(context, cargando),
                 const SizedBox(height: 32),

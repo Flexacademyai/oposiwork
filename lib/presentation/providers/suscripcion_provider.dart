@@ -56,15 +56,15 @@ class SuscripcionNotifier extends AsyncNotifier<CustomerInfo?> {
     }
   }
 
-  Future<bool> comprarMensual() async {
+  Future<bool> comprarMensual({bool consentimientoDesistimiento = false}) async {
     if (!RevenueCatConfig.pagosHabilitados) return _pagoNoDisponible();
-    if (kIsWeb) return _comprarWeb('monthly');
+    if (kIsWeb) return _comprarWeb('monthly', consentimientoDesistimiento);
     return _comprarMovil(RevenueCatConfig.productoMensual);
   }
 
-  Future<bool> comprarAnual() async {
+  Future<bool> comprarAnual({bool consentimientoDesistimiento = false}) async {
     if (!RevenueCatConfig.pagosHabilitados) return _pagoNoDisponible();
-    if (kIsWeb) return _comprarWeb('annual');
+    if (kIsWeb) return _comprarWeb('annual', consentimientoDesistimiento);
     return _comprarMovil(RevenueCatConfig.productoAnual);
   }
 
@@ -108,7 +108,7 @@ class SuscripcionNotifier extends AsyncNotifier<CustomerInfo?> {
     }
   }
 
-  Future<bool> _comprarWeb(String plan) async {
+  Future<bool> _comprarWeb(String plan, bool consentimientoDesistimiento) async {
     state = const AsyncLoading();
     _ultimoErrorPago = null;
     try {
@@ -119,9 +119,18 @@ class SuscripcionNotifier extends AsyncNotifier<CustomerInfo?> {
         return false;
       }
 
+      // Consentimiento expreso de ejecucion inmediata y renuncia al
+      // desistimiento sobre contenido digital (art. 103.m TRLGDCU).
+      if (!consentimientoDesistimiento) {
+        _ultimoErrorPago =
+            'Debes aceptar el inicio inmediato del servicio para continuar.';
+        state = const AsyncData(null);
+        return false;
+      }
+
       final response = await supabase.functions.invoke(
         'create-stripe-checkout',
-        body: {'plan': plan},
+        body: {'plan': plan, 'consentimientoDesistimiento': true},
       );
       final data = response.data;
       final error = data is Map ? data['error'] as String? : null;

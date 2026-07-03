@@ -91,6 +91,6 @@ Deno.serve(async (req) => {
     return json(req, { url: stripeData.url })
   } catch (error) {
     console.error('create-stripe-portal error', error)
-    return json(req, { error: error.message ?? 'Error interno' }, 500)
+    return json(req, { error: 'Error interno' }, 500)
   }
 })

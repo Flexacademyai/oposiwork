@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
     }
 
     // Rate limiting por usuario: 5 consultas/minuto, 20 consultas/hora
-    const permitido = await checkUserRateLimit(supabase, user.id, 'chat-rag', 5, 20)
+    const permitido = await checkUserRateLimit(supabase, user.id, 'chat-rag', 5, 20, { failClosed: true })
     if (!permitido) {
       return rateLimitExceededResponse(corsHeaders, 'minuto')
     }
@@ -147,7 +147,8 @@ Responde siempre en español.`,
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('chat-rag error', error)
+    return new Response(JSON.stringify({ error: 'Error interno' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })

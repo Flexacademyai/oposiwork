@@ -32,27 +32,119 @@ function env(name: string): string {
   return Deno.env.get(name) ?? ''
 }
 
-async function enviarPush(token: string, title: string, body: string, data: Record<string, string>) {
-  const serverKey = env('FCM_SERVER_KEY')
-  if (!serverKey) throw new Error('FCM_SERVER_KEY no configurado')
+/** Escapa HTML para evitar inyección en el cuerpo del email (parte del texto
+ *  proviene de fuentes oficiales raspadas en monitor-boe). */
+function escapeHtml(texto: string): string {
+  return texto
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
 
-  const response = await fetch('https://fcm.googleapis.com/fcm/send', {
+// ── FCM HTTP v1 ─────────────────────────────────────────────────────────────
+// La API legacy (https://fcm.googleapis.com/fcm/send con `Authorization: key=`)
+// fue apagada por Google en junio de 2024. Usamos la API v1 con un token OAuth2
+// firmado desde la service account de Firebase.
+// Variables necesarias: FCM_PROJECT_ID, FCM_CLIENT_EMAIL, FCM_PRIVATE_KEY.
+
+let fcmTokenCache: { token: string; exp: number } | null = null
+
+function base64UrlEncode(data: string | Uint8Array): string {
+  const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data
+  let bin = ''
+  for (const b of bytes) bin += String.fromCharCode(b)
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+function pemToArrayBuffer(pem: string): ArrayBuffer {
+  const b64 = pem
+    .replace(/-----BEGIN PRIVATE KEY-----/, '')
+    .replace(/-----END PRIVATE KEY-----/, '')
+    .replace(/\s+/g, '')
+  const bin = atob(b64)
+  const buf = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i)
+  return buf.buffer
+}
+
+async function getFcmAccessToken(): Promise<string> {
+  const ahora = Math.floor(Date.now() / 1000)
+  if (fcmTokenCache && fcmTokenCache.exp > ahora + 60) return fcmTokenCache.token
+
+  const clientEmail = env('FCM_CLIENT_EMAIL')
+  const privateKeyPem = env('FCM_PRIVATE_KEY').replace(/\\n/g, '\n')
+  if (!clientEmail || !privateKeyPem) {
+    throw new Error('FCM_CLIENT_EMAIL / FCM_PRIVATE_KEY no configurados')
+  }
+
+  const header = base64UrlEncode(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
+  const claim = base64UrlEncode(JSON.stringify({
+    iss: clientEmail,
+    scope: 'https://www.googleapis.com/auth/firebase.messaging',
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: ahora,
+    exp: ahora + 3600,
+  }))
+  const unsigned = `${header}.${claim}`
+
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    pemToArrayBuffer(privateKeyPem),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(unsigned))
+  const jwt = `${unsigned}.${base64UrlEncode(new Uint8Array(sig))}`
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
-    headers: {
-      Authorization: `key=${serverKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      to: token,
-      notification: { title, body },
-      data,
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
     }),
   })
+  if (!res.ok) throw new Error(`OAuth FCM ${res.status}: ${await res.text()}`)
+  const data = await res.json()
+  fcmTokenCache = { token: data.access_token, exp: ahora + (data.expires_in ?? 3600) }
+  return data.access_token
+}
 
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(`FCM ${response.status}: ${text}`)
-  }
+/** Devuelve 'enviado' u 'caducado' (token no registrado: el llamador lo desactiva). */
+async function enviarPush(
+  token: string,
+  title: string,
+  body: string,
+  data: Record<string, string>,
+): Promise<'enviado' | 'caducado'> {
+  const projectId = env('FCM_PROJECT_ID')
+  if (!projectId) throw new Error('FCM_PROJECT_ID no configurado')
+
+  const accessToken = await getFcmAccessToken()
+  const response = await fetch(
+    `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: { token, notification: { title, body }, data },
+      }),
+    },
+  )
+
+  if (response.ok) return 'enviado'
+
+  // 404 UNREGISTERED / 400 token inválido → el token ya no sirve.
+  if (response.status === 404 || response.status === 400) return 'caducado'
+
+  const text = await response.text()
+  throw new Error(`FCM ${response.status}: ${text}`)
 }
 
 async function enviarEmail(email: string, subject: string, html: string) {
@@ -110,7 +202,10 @@ Deno.serve(async (req) => {
     .eq('estado', 'pendiente')
     .limit(100)
 
-  if (error) return json({ error: error.message }, 500)
+  if (error) {
+    console.error('send-notifications query error', error)
+    return json({ error: 'Error interno' }, 500)
+  }
 
   let enviadas = 0
   let fallidas = 0
@@ -151,11 +246,18 @@ Deno.serve(async (req) => {
 
         for (const token of tokens) {
           const routeId = notif.convocatorias?.oposicion_id || notif.convocatoria_id
-          await enviarPush(token.fcm_token, notif.titulo, notif.mensaje, {
+          const resultado = await enviarPush(token.fcm_token, notif.titulo, notif.mensaje, {
             route: `/oposiciones/${routeId}`,
             tipo: notif.tipo,
             notificacion_id: item.notificacion_id,
           })
+          // Token caducado/no registrado: lo desactivamos para no reintentar siempre.
+          if (resultado === 'caducado') {
+            await supabase
+              .from('usuario_dispositivos')
+              .update({ activo: false })
+              .eq('fcm_token', token.fcm_token)
+          }
         }
       }
 
@@ -169,7 +271,7 @@ Deno.serve(async (req) => {
         await enviarEmail(
           item.perfiles.email,
           notif.titulo,
-          `<p>${notif.mensaje}</p><p><a href="https://www.oposiwork.com/app/#/home">Abrir Oposiwork</a></p>`,
+          `<p>${escapeHtml(notif.mensaje)}</p><p><a href="https://www.oposiwork.com/app/#/home">Abrir Oposiwork</a></p>`,
         )
       }
 

@@ -40,6 +40,12 @@ Deno.serve(async (req) => {
       return json(req, { error: 'Plan no válido' }, 400)
     }
 
+    // Consentimiento expreso de ejecución inmediata + renuncia al desistimiento
+    // sobre contenido digital (art. 103.m TRLGDCU). Obligatorio para vender.
+    if (body.consentimientoDesistimiento !== true) {
+      return json(req, { error: 'Falta el consentimiento de inicio inmediato del servicio' }, 400)
+    }
+
     const supabase = createClient(
       env('SUPABASE_URL'),
       env('SUPABASE_SERVICE_ROLE_KEY'),
@@ -78,6 +84,7 @@ Deno.serve(async (req) => {
     params.set('cancel_url', `${appBaseUrl}/app/#/suscripcion?checkout=cancelled`)
     params.set('metadata[user_id]', userData.user.id)
     params.set('metadata[plan]', plan)
+    params.set('metadata[consentimiento_desistimiento]', new Date().toISOString())
     params.set('subscription_data[metadata][user_id]', userData.user.id)
     params.set('subscription_data[metadata][plan]', plan)
     params.set('allow_promotion_codes', 'true')
@@ -94,17 +101,12 @@ Deno.serve(async (req) => {
     const stripeData = await stripeResponse.json()
     if (!stripeResponse.ok) {
       console.error('Stripe Checkout error', stripeData)
-      const stripeMessage =
-        typeof stripeData?.error?.message === 'string'
-          ? stripeData.error.message
-          : 'No se pudo crear la sesion de pago'
-      return json(req, { error: `Stripe: ${stripeMessage}` }, 502)
       return json(req, { error: 'No se pudo crear la sesión de pago' }, 502)
     }
 
     return json(req, { url: stripeData.url })
   } catch (error) {
     console.error('create-stripe-checkout error', error)
-    return json(req, { error: error.message ?? 'Error interno' }, 500)
+    return json(req, { error: 'Error interno' }, 500)
   }
 })

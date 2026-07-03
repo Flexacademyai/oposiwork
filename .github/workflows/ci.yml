@@ -67,7 +67,9 @@ jobs:
             --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
             --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} \
             --dart-define=REVENUECAT_API_KEY_IOS=${{ secrets.REVENUECAT_API_KEY_IOS }} \
-            --dart-define=REVENUECAT_API_KEY_ANDROID=${{ secrets.REVENUECAT_API_KEY_ANDROID }}
+            --dart-define=REVENUECAT_API_KEY_ANDROID=${{ secrets.REVENUECAT_API_KEY_ANDROID }} \
+            --dart-define=CAPTCHA_PROVIDER=${{ secrets.CAPTCHA_PROVIDER }} \
+            --dart-define=CAPTCHA_SITE_KEY=${{ secrets.CAPTCHA_SITE_KEY }}
 
       - name: Preparar estructura de despliegue
         run: |

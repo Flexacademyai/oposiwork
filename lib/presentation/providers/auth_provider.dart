@@ -48,6 +48,7 @@ class AuthNotifier extends AsyncNotifier<void> {
     required String password,
     String? nombre,
     String? apellidos,
+    String? captchaToken,
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
@@ -57,6 +58,7 @@ class AuthNotifier extends AsyncNotifier<void> {
         password: password,
         nombre: nombre,
         apellidos: apellidos,
+        captchaToken: captchaToken,
       );
     });
   }
@@ -64,12 +66,15 @@ class AuthNotifier extends AsyncNotifier<void> {
   Future<void> iniciarSesion({
     required String email,
     required String password,
+    String? captchaToken,
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      await ref
-          .read(authRepositoryProvider)
-          .iniciarSesionConEmail(email: email, password: password);
+      await ref.read(authRepositoryProvider).iniciarSesionConEmail(
+            email: email,
+            password: password,
+            captchaToken: captchaToken,
+          );
     });
   }
 

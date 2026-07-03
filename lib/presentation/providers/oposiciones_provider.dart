@@ -9,6 +9,18 @@ final oposicionesRepositoryProvider = Provider<OposicionesRepository>((ref) {
   return OposicionesRepository(ref.watch(supabaseClientProvider));
 });
 
+/// Todas las oposiciones activas (con o sin convocatoria abierta) — listado general.
+final todasLasOposicionesProvider = FutureProvider<List<Oposicion>>((ref) async {
+  return ref.watch(oposicionesRepositoryProvider).obtenerTodasLasOposiciones();
+});
+
+/// Todas las oposiciones activas con su estado de inscripción (para badges).
+final oposicionesConEstadoProvider =
+    FutureProvider<List<OposicionConEstado>>((ref) async {
+  return ref.watch(oposicionesRepositoryProvider).obtenerOposicionesConEstado();
+});
+
+/// Solo oposiciones con convocatoria abierta hoy (para destacar/filtrar).
 final oposicionesActivasProvider = FutureProvider<List<Oposicion>>((ref) async {
   return ref.watch(oposicionesRepositoryProvider).obtenerOposicionesActivas();
 });

@@ -45,6 +45,14 @@ async function verifyStripeSignature(rawBody: string, header: string, secret: st
 
   if (!timestamp || signatures.length === 0) return false
 
+  // Protección anti-replay: rechazar firmas fuera de la ventana de tolerancia
+  // (5 min, igual que el SDK oficial de Stripe). Sin esto, una petición firmada
+  // capturada podría reenviarse indefinidamente.
+  const TOLERANCIA_SEGUNDOS = 300
+  const ts = Number(timestamp)
+  const ahora = Math.floor(Date.now() / 1000)
+  if (!Number.isFinite(ts) || Math.abs(ahora - ts) > TOLERANCIA_SEGUNDOS) return false
+
   const expected = await hmacSha256Hex(secret, `${timestamp}.${rawBody}`)
   return signatures.some((signature) => constantTimeEquals(expected, signature))
 }
@@ -153,6 +161,6 @@ Deno.serve(async (req) => {
     return json({ ok: true, type })
   } catch (error) {
     console.error('webhook-stripe error', error)
-    return json({ error: error.message ?? 'Error interno' }, 500)
+    return json({ error: 'Error interno' }, 500)
   }
 })

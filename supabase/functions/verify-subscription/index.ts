@@ -71,8 +71,8 @@ Deno.serve(async (req) => {
     const revenuecatUserId: string | undefined = body?.revenuecatUserId
 
     // Verificar con RevenueCat si se proporcionó el ID de usuario (y tiene formato válido)
-    if (revenuecatUserId && esIdExterno(revenuecatUserId)) {
-      const rcApiKey = Deno.env.get('REVENUECAT_API_KEY_SECRET')
+    const rcApiKey = Deno.env.get('REVENUECAT_API_KEY_SECRET')
+    if (revenuecatUserId && esIdExterno(revenuecatUserId) && rcApiKey) {
       const rcResponse = await fetch(
         `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(revenuecatUserId)}`,
         {
@@ -90,8 +90,11 @@ Deno.serve(async (req) => {
         const esPremium = premium && new Date(premium.expires_date) > new Date()
 
         if (esPremium) {
+          // Derivar el plan real (mensual/anual) del producto, no asumir mensual.
+          const productId = String(premium.product_identifier ?? '').toLowerCase()
+          const plan = /annual|anual|yearly/.test(productId) ? 'annual' : 'monthly'
           await supabase.from('perfiles').update({
-            plan: 'monthly',
+            plan,
             plan_fin: premium.expires_date,
             revenuecat_id: revenuecatUserId,
           }).eq('id', user.id)
@@ -118,8 +121,9 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error) {
+    console.error('verify-subscription error', error)
     return new Response(
-      JSON.stringify({ premium: false, error: error.message }),
+      JSON.stringify({ premium: false, error: 'Error interno' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

@@ -13,6 +13,7 @@ export async function checkUserRateLimit(
   endpoint: string,
   limitePorMinuto: number,
   limitePorHora: number,
+  opciones: { failClosed?: boolean } = {},
 ): Promise<boolean> {
   const { data, error } = await supabase.rpc('check_user_rate_limit', {
     p_usuario_id:    usuarioId,
@@ -22,10 +23,11 @@ export async function checkUserRateLimit(
   })
 
   if (error) {
-    // Fail-open: si falla la función de rate limit no bloqueamos al usuario.
-    // El error queda en los logs de Supabase para revisión.
     console.error(`[rate_limit] error en ${endpoint}:`, error.message)
-    return true
+    // En endpoints de coste (IA, voz) preferimos fail-closed: si el contador
+    // falla, denegamos para no exponernos a abuso/gasto sin control. En el
+    // resto, fail-open para no bloquear al usuario por un error transitorio.
+    return opciones.failClosed ? false : true
   }
 
   return data === true

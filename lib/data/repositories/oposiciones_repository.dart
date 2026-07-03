@@ -4,11 +4,86 @@ import '../models/oposicion.dart';
 import '../models/convocatoria.dart';
 import '../../config/supabase_config.dart';
 
+/// Estado de inscripción derivado de las convocatorias de una oposición.
+enum EstadoInscripcion { abierta, proxima, cerrada, sinConvocatoria }
+
+/// Oposición junto con su estado de inscripción calculado.
+class OposicionConEstado {
+  final Oposicion oposicion;
+  final EstadoInscripcion estado;
+  const OposicionConEstado({required this.oposicion, required this.estado});
+}
+
 class OposicionesRepository {
   final SupabaseClient _supabase;
 
   OposicionesRepository(this._supabase);
 
+  /// Todas las oposiciones activas, tengan o no convocatoria abierta ahora.
+  /// El estado concreto de la convocatoria se muestra en el detalle.
+  Future<List<Oposicion>> obtenerTodasLasOposiciones() async {
+    final data = await _supabase
+        .from(SupabaseConfig.tablaOposiciones)
+        .select()
+        .eq('activa', true)
+        .order('nombre');
+    return (data as List).map((e) => Oposicion.fromMap(e)).toList();
+  }
+
+  /// Todas las oposiciones activas con su estado de inscripción calculado,
+  /// en una sola consulta (sin N+1). Para el listado con badges.
+  Future<List<OposicionConEstado>> obtenerOposicionesConEstado() async {
+    final hoy = DateTime.now().toIso8601String().substring(0, 10);
+    final data = await _supabase
+        .from(SupabaseConfig.tablaOposiciones)
+        .select(
+          '*, convocatorias(estado, fecha_inicio_instancias, fecha_fin_instancias)',
+        )
+        .eq('activa', true)
+        .order('nombre');
+
+    return (data as List).map((row) {
+      final convocatorias =
+          ((row['convocatorias'] as List?) ?? const [])
+              .cast<Map<String, dynamic>>();
+      return OposicionConEstado(
+        oposicion: Oposicion.fromMap(row),
+        estado: _calcularEstado(convocatorias, hoy),
+      );
+    }).toList();
+  }
+
+  EstadoInscripcion _calcularEstado(
+    List<Map<String, dynamic>> convocatorias,
+    String hoy,
+  ) {
+    if (convocatorias.isEmpty) return EstadoInscripcion.sinConvocatoria;
+    var hayProxima = false;
+    for (final c in convocatorias) {
+      final estado = c['estado'] as String?;
+      final ini = c['fecha_inicio_instancias'] as String?;
+      final fin = c['fecha_fin_instancias'] as String?;
+      // Abierta hoy (comparación lexicográfica válida en formato YYYY-MM-DD).
+      if (estado == 'abierta' &&
+          ini != null &&
+          fin != null &&
+          ini.compareTo(hoy) <= 0 &&
+          fin.compareTo(hoy) >= 0) {
+        return EstadoInscripcion.abierta;
+      }
+      if (ini != null &&
+          ini.compareTo(hoy) > 0 &&
+          estado != 'cerrada' &&
+          estado != 'suspendida') {
+        hayProxima = true;
+      }
+    }
+    return hayProxima ? EstadoInscripcion.proxima : EstadoInscripcion.cerrada;
+  }
+
+  /// Solo oposiciones con convocatoria de inscripción abierta hoy.
+  /// El listado general usa [obtenerTodasLasOposiciones] para que TODAS
+  /// sean visibles; este método sirve para destacar/filtrar abiertas.
   Future<List<Oposicion>> obtenerOposicionesActivas() async {
     final hoy = DateTime.now().toIso8601String().substring(0, 10);
     final data = await _supabase

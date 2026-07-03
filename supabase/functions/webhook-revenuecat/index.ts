@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error procesando webhook RevenueCat:', error)
     // RevenueCat reintenta en 5xx — devolver 500 para que reintente
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: 'Error interno' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     })

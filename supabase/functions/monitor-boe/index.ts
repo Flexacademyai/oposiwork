@@ -38,7 +38,7 @@ const SOURCE_URL_OVERRIDES: Record<string, Pick<FuenteConvocatorias, 'url' | 'ty
   },
 }
 
-const SOURCE_FETCH_TIMEOUT_MS = 10000
+const SOURCE_FETCH_TIMEOUT_MS = 15000
 const DETAIL_FETCH_TIMEOUT_MS = 5000
 const MAX_DETAIL_ITEMS = 80
 const MAX_ITEMS_PER_HTML_SOURCE = 120
@@ -713,22 +713,88 @@ function esConvocatoriaInscribibleNormalizada(title: string): boolean {
   return /(oposicion|oposiciones|concurso-oposicion|proceso selectivo|procesos selectivos|pruebas selectivas|convocatoria.*plazas|convoca.*plazas|plazas?.*(funcionario|funcionaria|laboral|estatutario|estatutaria|administrativo|auxiliar|tecnico|policia|bombero)|personal .*fijo|profesor permanente laboral|funcionario|funcionaria|estatutario fijo|estatutaria fija)/.test(t)
 }
 
-async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response | null> {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+/**
+ * Defensa anti-SSRF: las URLs provienen de la tabla `boletines` y de variables
+ * de entorno, no solo de la lista fija. Solo permitimos http(s) hacia hosts
+ * públicos; bloqueamos localhost, IPs privadas/loopback y el metadata endpoint
+ * de cloud (169.254.169.254).
+ */
+function esUrlPublicaSegura(url: string): boolean {
+  let u: URL
   try {
-    return await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 Oposiwork-Monitor/1.0',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,text/xml;q=0.9,*/*;q=0.8',
-      },
-    })
+    u = new URL(url)
   } catch (_) {
-    return null
-  } finally {
-    clearTimeout(timeout)
+    return false
   }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return false
+
+  const host = u.hostname.toLowerCase()
+  if (
+    host === 'localhost' ||
+    host === '0.0.0.0' ||
+    host === '::1' ||
+    host.endsWith('.localhost') ||
+    host.endsWith('.internal') ||
+    host.endsWith('.local')
+  ) {
+    return false
+  }
+  // IPv4 privadas / loopback / link-local (incluye metadata 169.254.169.254)
+  const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+  if (m) {
+    const [a, b] = [Number(m[1]), Number(m[2])]
+    if (
+      a === 10 ||
+      a === 127 ||
+      (a === 192 && b === 168) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 169 && b === 254) ||
+      a === 0
+    ) {
+      return false
+    }
+  }
+  return true
+}
+
+// Muchas sedes oficiales bloquean User-Agents no-navegador (falsos positivos de
+// WAF). Nos identificamos como un navegador real para un agregador legítimo de
+// datos públicos.
+const BROWSER_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
+
+async function fetchWithTimeout(
+  url: string,
+  timeoutMs: number,
+  extraHeaders: Record<string, string> = {},
+): Promise<Response | null> {
+  if (!esUrlPublicaSegura(url)) return null
+
+  const intento = async (): Promise<Response | null> => {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      return await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': BROWSER_UA,
+          'Accept':
+            'text/html,application/xhtml+xml,application/xml;q=0.9,text/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'es-ES,es;q=0.9',
+          ...extraHeaders,
+        },
+      })
+    } catch (_) {
+      return null
+    } finally {
+      clearTimeout(timeout)
+    }
+  }
+
+  // Un reintento ante fallos transitorios (timeout/red) de sedes lentas.
+  const primera = await intento()
+  if (primera) return primera
+  return await intento()
 }
 
 async function mapLimit<T, R>(
@@ -753,7 +819,98 @@ async function mapLimit<T, R>(
   return results
 }
 
+// ── BOE: API de datos abiertos ──────────────────────────────────────────────
+// El RSS del BOE (canal.php) viene vacío. La API oficial de datos abiertos
+// devuelve el sumario diario en JSON, del que extraemos la sección "2B"
+// (II.B Oposiciones y concursos). Mucho más fiable que raspar HTML/RSS.
+
+function esFuenteBoe(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase()
+    return host === 'boe.es' || host === 'www.boe.es'
+  } catch (_) {
+    return false
+  }
+}
+
+function toArray<T>(value: T | T[] | undefined | null): T[] {
+  if (value === undefined || value === null) return []
+  return Array.isArray(value) ? value : [value]
+}
+
+function fechasBoeRecientes(dias: number): string[] {
+  const out: string[] = []
+  const hoy = new Date()
+  for (let i = 0; i < dias; i++) {
+    const d = new Date(hoy)
+    d.setUTCDate(d.getUTCDate() - i)
+    const y = d.getUTCFullYear()
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(d.getUTCDate()).padStart(2, '0')
+    out.push(`${y}${m}${day}`)
+  }
+  return out
+}
+
+async function fetchBoeOposiciones(source: FuenteConvocatorias): Promise<RssItem[]> {
+  const items: RssItem[] = []
+  const vistos = new Set<string>()
+
+  // BOE publica de lunes a sábado; el cron corre temprano, así que revisamos
+  // los últimos días para no perder ediciones recientes.
+  for (const fecha of fechasBoeRecientes(3)) {
+    const resp = await fetchWithTimeout(
+      `https://www.boe.es/datosabiertos/api/boe/sumario/${fecha}`,
+      SOURCE_FETCH_TIMEOUT_MS,
+      { 'Accept': 'application/json' },
+    )
+    if (!resp || !resp.ok) continue
+
+    let data: Record<string, unknown>
+    try {
+      data = await resp.json()
+    } catch (_) {
+      continue
+    }
+
+    const sumario = (data as { data?: { sumario?: { diario?: unknown } } })?.data?.sumario
+    const fechaIso = `${fecha.slice(0, 4)}-${fecha.slice(4, 6)}-${fecha.slice(6, 8)}`
+
+    for (const diario of toArray(sumario?.diario as unknown)) {
+      for (const seccion of toArray((diario as { seccion?: unknown })?.seccion)) {
+        if (String((seccion as { codigo?: unknown })?.codigo ?? '') !== '2B') continue
+        for (const dep of toArray((seccion as { departamento?: unknown })?.departamento)) {
+          const epigrafes = toArray((dep as { epigrafe?: unknown })?.epigrafe)
+          const itemsDep = epigrafes.length > 0
+            ? epigrafes.flatMap((ep) => toArray((ep as { item?: unknown })?.item))
+            : toArray((dep as { item?: unknown })?.item)
+
+          for (const it of itemsDep) {
+            const item = it as { titulo?: unknown; url_html?: unknown; url_pdf?: { texto?: unknown } }
+            const titulo = String(item?.titulo ?? '').trim()
+            const link = String(item?.url_html ?? item?.url_pdf?.texto ?? '').trim()
+            if (!titulo || !link || vistos.has(link)) continue
+            vistos.add(link)
+            items.push({
+              title: titulo,
+              link,
+              pubDate: fechaIso,
+              sourceName: source.name,
+              sourceScope: source.scope,
+            })
+          }
+        }
+      }
+    }
+  }
+
+  return items
+}
+
 async function fetchFuente(source: FuenteConvocatorias): Promise<RssItem[]> {
+  if (esFuenteBoe(source.url)) {
+    return await fetchBoeOposiciones(source)
+  }
   const response = await fetchWithTimeout(source.url, SOURCE_FETCH_TIMEOUT_MS)
   if (!response) throw new Error('No se pudo conectar con la fuente')
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -1250,7 +1407,8 @@ Deno.serve(async (req) => {
       { headers: { 'Content-Type': 'application/json' } },
     )
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('monitor-boe error', error)
+    return new Response(JSON.stringify({ error: 'Error interno' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     })

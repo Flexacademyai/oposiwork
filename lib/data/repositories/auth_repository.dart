@@ -19,6 +19,7 @@ class AuthRepository {
     required String password,
     String? nombre,
     String? apellidos,
+    String? captchaToken,
   }) async {
     final nombreLimpio =
         nombre != null ? SecurityService.sanitizarNombre(nombre) : null;
@@ -28,6 +29,7 @@ class AuthRepository {
     final response = await _supabase.auth.signUp(
       email: SecurityService.normalizarEmail(email),
       password: password,
+      captchaToken: captchaToken,
       data: {
         if (nombreLimpio != null && nombreLimpio.isNotEmpty)
           'nombre': nombreLimpio,
@@ -41,10 +43,12 @@ class AuthRepository {
   Future<AuthResponse> iniciarSesionConEmail({
     required String email,
     required String password,
+    String? captchaToken,
   }) async {
     return await _supabase.auth.signInWithPassword(
       email: SecurityService.normalizarEmail(email),
       password: password,
+      captchaToken: captchaToken,
     );
   }
 
@@ -56,9 +60,13 @@ class AuthRepository {
     await _supabase.auth.signOut();
   }
 
-  Future<void> enviarRecuperacionContrasena(String email) async {
+  Future<void> enviarRecuperacionContrasena(
+    String email, {
+    String? captchaToken,
+  }) async {
     await _supabase.auth.resetPasswordForEmail(
       SecurityService.normalizarEmail(email),
+      captchaToken: captchaToken,
     );
   }
 

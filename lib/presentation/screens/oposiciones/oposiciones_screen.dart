@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../data/repositories/oposiciones_repository.dart';
 import '../../providers/oposiciones_provider.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/error_widget.dart';
@@ -13,7 +14,7 @@ class OposicionesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final oposicionesAsync = ref.watch(oposicionesActivasProvider);
+    final oposicionesAsync = ref.watch(oposicionesConEstadoProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -37,7 +38,8 @@ class OposicionesScreen extends ConsumerWidget {
             itemCount: oposiciones.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
-              final op = oposiciones[index];
+              final op = oposiciones[index].oposicion;
+              final estado = oposiciones[index].estado;
               return _TarjetaOposicion(
                 nombre: op.nombre,
                 cuerpo: op.cuerpo,
@@ -45,6 +47,7 @@ class OposicionesScreen extends ConsumerWidget {
                 nivel: op.nivel,
                 tienePsicotecnicos: op.tienePsicotecnicos,
                 tienePruebasFisicas: op.tienePruebasFisicas,
+                estado: estado,
                 onTap:
                     () => context.push(
                       AppRoutes.oposicionDetail.replaceFirst(':id', op.id),
@@ -57,7 +60,7 @@ class OposicionesScreen extends ConsumerWidget {
         error:
             (e, _) => AppErrorWidget(
               mensaje: e.toString(),
-              onReintentar: () => ref.invalidate(oposicionesActivasProvider),
+              onReintentar: () => ref.invalidate(oposicionesConEstadoProvider),
             ),
       ),
     );
@@ -82,7 +85,7 @@ class _EstadoVacioOposiciones extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'No hay convocatorias con inscripción abierta',
+              'Aún no hay oposiciones disponibles',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleLarge,
             ),
@@ -108,6 +111,7 @@ class _TarjetaOposicion extends StatelessWidget {
   final String nivel;
   final bool tienePsicotecnicos;
   final bool tienePruebasFisicas;
+  final EstadoInscripcion estado;
   final VoidCallback onTap;
 
   const _TarjetaOposicion({
@@ -117,8 +121,22 @@ class _TarjetaOposicion extends StatelessWidget {
     required this.nivel,
     required this.tienePsicotecnicos,
     required this.tienePruebasFisicas,
+    required this.estado,
     required this.onTap,
   });
+
+  ({String label, Color color}) get _estadoChip {
+    switch (estado) {
+      case EstadoInscripcion.abierta:
+        return (label: 'Inscripción abierta', color: AppColors.success);
+      case EstadoInscripcion.proxima:
+        return (label: 'Próxima', color: AppColors.warning);
+      case EstadoInscripcion.cerrada:
+        return (label: 'Inscripción cerrada', color: AppColors.textTertiary);
+      case EstadoInscripcion.sinConvocatoria:
+        return (label: 'Sin convocatoria', color: AppColors.textTertiary);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -170,6 +188,7 @@ class _TarjetaOposicion extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 4,
                 children: [
+                  _Chip(label: _estadoChip.label, color: _estadoChip.color),
                   _Chip(label: administracion, color: AppColors.primaryLight),
                   _Chip(label: 'Grupo $nivel', color: AppColors.secondary),
                   if (tienePsicotecnicos)

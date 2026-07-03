@@ -119,7 +119,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildSeccionOposiciones(BuildContext context, WidgetRef ref) {
-    final oposicionesAsync = ref.watch(oposicionesActivasProvider);
+    final oposicionesAsync = ref.watch(todasLasOposicionesProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

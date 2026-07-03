@@ -16,6 +16,7 @@ class PaywallScreen extends ConsumerStatefulWidget {
 
 class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   bool _anualSeleccionado = true;
+  bool _consentimientoDesistimiento = false;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +40,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       _buildBeneficios(context),
                       const SizedBox(height: 32),
                       _buildSelectorPlan(context),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
+                      _buildConsentimiento(context),
+                      const SizedBox(height: 16),
                       _buildBotonComprar(context, cargando),
                       const SizedBox(height: 12),
                       _buildRestaurar(cargando),
@@ -175,6 +178,38 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     );
   }
 
+  // Consentimiento expreso de inicio inmediato y renuncia al desistimiento
+  // sobre contenido digital (art. 103.m TRLGDCU). Solo aplica al pago web;
+  // en móvil el desistimiento lo rigen App Store / Google Play.
+  Widget _buildConsentimiento(BuildContext context) {
+    if (!kIsWeb || !RevenueCatConfig.pagosHabilitados) {
+      return const SizedBox.shrink();
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Checkbox(
+          value: _consentimientoDesistimiento,
+          onChanged: (v) =>
+              setState(() => _consentimientoDesistimiento = v ?? false),
+          checkColor: AppColors.primary,
+          fillColor: WidgetStateProperty.all(Colors.white),
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(
+              'Solicito el inicio inmediato del servicio y acepto que, al '
+              'comenzar el acceso al contenido premium, pierdo el derecho de '
+              'desistimiento (art. 103.m TRLGDCU).',
+              style: TextStyle(color: Colors.white.withAlpha(200), fontSize: 12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildBotonComprar(BuildContext context, bool cargando) {
     final pagosActivos = RevenueCatConfig.pagosHabilitados;
     return ElevatedButton(
@@ -251,14 +286,16 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   }
 
   Future<void> _comprar() async {
+    // En web exigimos el consentimiento marcado; en móvil lo rige la tienda.
+    final consentimiento = kIsWeb ? _consentimientoDesistimiento : true;
     final exito =
         _anualSeleccionado
             ? await ref
                 .read(suscripcionNotifierProvider.notifier)
-                .comprarAnual()
+                .comprarAnual(consentimientoDesistimiento: consentimiento)
             : await ref
                 .read(suscripcionNotifierProvider.notifier)
-                .comprarMensual();
+                .comprarMensual(consentimientoDesistimiento: consentimiento);
 
     if (!mounted) return;
     if (exito) {

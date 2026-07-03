@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../config/captcha_config.dart';
+import '../../../core/captcha/captcha.dart';
 import '../../../core/security/security_service.dart' as rate_security;
 import '../../../core/services/security_service.dart' as input_security;
 import '../../providers/auth_provider.dart';
@@ -22,6 +24,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _ocultarPassword = true;
+  String? _captchaToken;
+  CaptchaHandle? _captcha;
+
+  @override
+  void initState() {
+    super.initState();
+    if (CaptchaConfig.activoEnWeb) {
+      _captcha = construirCaptcha(
+        onToken: (t) {
+          if (mounted) setState(() => _captchaToken = t);
+        },
+        onExpirado: () {
+          if (mounted) setState(() => _captchaToken = null);
+        },
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -49,6 +68,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       return;
     }
 
+    if (CaptchaConfig.activoEnWeb && (_captchaToken?.isEmpty ?? true)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Completa la verificación de seguridad para continuar.'),
+        ),
+      );
+      return;
+    }
+
     await ref
         .read(authNotifierProvider.notifier)
         .registrar(
@@ -62,6 +90,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           apellidos: input_security.SecurityService.sanitizarNombre(
             _apellidosController.text,
           ),
+          captchaToken: _captchaToken,
         );
 
     if (!mounted) return;
@@ -76,13 +105,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         );
         context.go(AppRoutes.login);
       },
-      error:
-          (e, _) => ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(e.toString()),
-              backgroundColor: AppColors.error,
-            ),
+      error: (e, _) {
+        // El token de captcha es de un solo uso: regenerarlo tras el fallo.
+        _captcha?.reset();
+        _captchaToken = null;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: AppColors.error,
           ),
+        );
+      },
       loading: () {},
     );
   }
@@ -205,6 +238,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     return null;
                   },
                 ),
+                if (_captcha != null) ...[
+                  const SizedBox(height: 24),
+                  _captcha!.widget,
+                ],
                 const SizedBox(height: 32),
                 ElevatedButton(
                   onPressed: cargando ? null : _registrar,

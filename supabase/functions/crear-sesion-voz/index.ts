@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     }
 
     // Rate limiting por usuario: 2 sesiones/minuto, 5 sesiones/hora
-    const permitido = await checkUserRateLimit(supabase, user.id, 'crear-sesion-voz', 2, 5)
+    const permitido = await checkUserRateLimit(supabase, user.id, 'crear-sesion-voz', 2, 5, { failClosed: true })
     if (!permitido) {
       return rateLimitExceededResponse(corsHeaders, 'minuto')
     }
@@ -146,7 +146,8 @@ Habla siempre en español. Sé motivador pero preciso.`,
       }
     )
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('crear-sesion-voz error', error)
+    return new Response(JSON.stringify({ error: 'Error interno' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })

@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /app/assets/
+Disallow: /app/canvaskit/
 
 Sitemap: https://www.oposiwork.com/sitemap.xml
