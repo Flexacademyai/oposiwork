@@ -1304,13 +1304,13 @@ async function enviarResumenAdmin(resumen: {
   fuentesOk: number
   fuentesSinResultados: number
   fuentesError: Array<{ nombre: string; error: string }>
-}): Promise<void> {
+}): Promise<string> {
   const brevoKey = Deno.env.get('BREVO_API_KEY')
   const resendKey = Deno.env.get('RESEND_API_KEY')
   const adminEmail = Deno.env.get('ADMIN_ALERT_EMAIL')
   const from = Deno.env.get('EMAIL_FROM') || Deno.env.get('RESEND_FROM_EMAIL') ||
     'Oposiwork <notificaciones@oposiwork.com>'
-  if ((!brevoKey && !resendKey) || !adminEmail) return
+  if ((!brevoKey && !resendKey) || !adminEmail) return 'omitido: sin proveedor o sin ADMIN_ALERT_EMAIL'
 
   const listaErrores = resumen.fuentesError.length > 0
     ? `<ul>${resumen.fuentesError
@@ -1345,7 +1345,7 @@ async function enviarResumenAdmin(resumen: {
       const sender = remitente
         ? { name: remitente[1].trim() || 'Oposiwork', email: remitente[2].trim() }
         : { name: 'Oposiwork', email: from.trim() }
-      await fetch('https://api.brevo.com/v3/smtp/email', {
+      const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
           'api-key': brevoKey,
@@ -1360,17 +1360,22 @@ async function enviarResumenAdmin(resumen: {
         }),
         signal: controller.signal,
       })
-    } else {
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${resendKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ from, to: adminEmail, subject: asunto, html }),
-        signal: controller.signal,
-      })
+      if (!resp.ok) return `error brevo ${resp.status}: ${(await resp.text()).slice(0, 200)}`
+      return 'enviado (brevo)'
     }
+    const resp = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from, to: adminEmail, subject: asunto, html }),
+      signal: controller.signal,
+    })
+    if (!resp.ok) return `error resend ${resp.status}: ${(await resp.text()).slice(0, 200)}`
+    return 'enviado (resend)'
+  } catch (err) {
+    return `excepcion: ${String(err).slice(0, 200)}`
   } finally {
     clearTimeout(timeout)
   }
@@ -1635,8 +1640,9 @@ Deno.serve(async (req) => {
     const fuentesError = auditoria.filter((a) => a.estado === 'error')
     const fuentesSinResultados = auditoria.filter((a) => a.estado === 'sin_resultados')
     const fuentesOk = auditoria.filter((a) => a.estado === 'ok')
+    let emailAlerta = 'no intentado'
     try {
-      await enviarResumenAdmin({
+      emailAlerta = await enviarResumenAdmin({
         publicadas,
         publicadasSinPlazo,
         yaExistentes,
@@ -1646,6 +1652,7 @@ Deno.serve(async (req) => {
         fuentesError: fuentesError.map((a) => ({ nombre: a.source.name, error: a.error ?? '' })),
       })
     } catch (err) {
+      emailAlerta = `excepcion externa: ${String(err).slice(0, 200)}`
       console.error('monitor-boe: fallo al enviar resumen admin', err)
     }
 
@@ -1659,6 +1666,7 @@ Deno.serve(async (req) => {
         publicadas,
         publicadas_sin_plazo_estimado: publicadasSinPlazo,
         seo_ia_generados: seoGenerados,
+        email_alerta: emailAlerta,
         ya_existentes: yaExistentes,
         descartadas_cerradas: descartadasCerradas,
         timestamp: new Date().toISOString(),
