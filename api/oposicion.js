@@ -48,7 +48,7 @@ module.exports = async function handler(req, res) {
   }
 
   const oposiciones = await supaGet(
-    `oposiciones?select=id,slug,nombre,administracion,nivel,tiene_psicotecnicos&slug=eq.${encodeURIComponent(slug)}&activa=eq.true&limit=1`,
+    `oposiciones?select=id,slug,nombre,administracion,nivel,tiene_psicotecnicos,seo_titulo,seo_descripcion&slug=eq.${encodeURIComponent(slug)}&activa=eq.true&limit=1`,
   );
   const op = oposiciones?.[0];
 
@@ -71,13 +71,16 @@ module.exports = async function handler(req, res) {
   const abierta = conv?.estado === 'abierta';
   const plazoEstimado = /ESTIMADA/i.test(conv?.notas ?? '');
 
-  const tituloSeo = `${op.nombre} | Convocatoria, plazas y preparación - Oposiwork`.slice(0, 200);
-  const descripcion = [
+  // Si monitor-boe generó título/descripción SEO con IA, tienen prioridad.
+  const tituloSeo = (op.seo_titulo
+    ? `${op.seo_titulo} - Oposiwork`
+    : `${op.nombre} | Convocatoria, plazas y preparación - Oposiwork`).slice(0, 200);
+  const descripcion = (op.seo_descripcion || [
     `Convocatoria de ${op.nombre} (${op.administracion || 'España'})`,
     conv?.plazas ? `${conv.plazas} plazas` : null,
     abierta && finInstancias ? `plazo de instancias hasta el ${finInstancias}` : null,
     'Consulta los datos gratis y prepárala con tests y temario en Oposiwork.',
-  ].filter(Boolean).join('. ').slice(0, 300);
+  ].filter(Boolean).join('. ')).slice(0, 300);
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -146,9 +149,9 @@ module.exports = async function handler(req, res) {
   </header>
   <main id="contenido">
     <section class="section">
-      <nav class="breadcrumb" aria-label="Migas de pan"><a href="/">Inicio</a> › <a href="/oposiciones/">Oposiciones</a> › <span>${nombre}</span></nav>
+      <nav class="breadcrumb" aria-label="Migas de pan"><a href="/">Inicio</a> › <a href="/oposiciones/">Oposiciones</a> › <span>${escapeHtml(op.seo_titulo || op.nombre)}</span></nav>
       <div class="section-header">
-        <h1>${nombre}</h1>
+        <h1>${escapeHtml(op.seo_titulo || op.nombre)}</h1>
         <p>Convocatoria de ${admin}. Consulta gratis el estado, las plazas y el plazo de instancias, y prepara la oposición con tests, flashcards y seguimiento de progreso en Oposiwork.</p>
       </div>
       <div class="hero-actions">

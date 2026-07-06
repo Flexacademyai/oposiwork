@@ -44,8 +44,9 @@ const MAX_DETAIL_ITEMS = 250
 const MAX_ITEMS_PER_HTML_SOURCE = 120
 const SOURCE_CONCURRENCY = 12
 // Presupuesto de tiempo para el bucle de publicación: si se agota, devolvemos lo
-// hecho hasta el momento en vez de arriesgar un timeout duro de la Edge Function.
-const PUBLISH_TIME_BUDGET_MS = 110000
+// hecho hasta el momento en vez de arriesgar un 502 del gateway (el trabajo
+// restante se retoma en la siguiente ejecución diaria).
+const PUBLISH_TIME_BUDGET_MS = 60000
 // Cuando no se puede extraer el plazo del texto oficial, publicamos igualmente la
 // convocatoria con una fecha de fin ESTIMADA para no perderla (el opositor debe
 // confirmar en la fuente). 30 días naturales cubre el rango habitual (10-20 días
@@ -691,11 +692,15 @@ function parseHtmlItems(html: string, source: FuenteConvocatorias): RssItem[] {
       ? Math.min(...contextEnds) + 10
       : Math.min(html.length, match.index + 900)
     const context = stripHtml(html.slice(contextStart, contextEnd))
-    const title = esTituloGenerico(anchorTitle) && context
+    const title = (esTituloGenerico(anchorTitle) && context
       ? context
-      : `${anchorTitle} ${context}`.trim()
+      : `${anchorTitle} ${context}`.trim())
+      // El recorte de contexto puede partir una etiqueta a mitad ("<li"): fuera.
+      .replace(/<[^>]*$/, '')
+      .replace(/^[^>]*>/, '')
+      .trim()
     const key = `${link}|${title.slice(0, 100)}`
-    if (!title || seen.has(key) || !esConvocatoriaInscribibleNormalizada(title)) continue
+    if (!title || seen.has(key) || esTituloGenerico(title) || !esConvocatoriaInscribibleNormalizada(title)) continue
     seen.add(key)
     items.push({
       title: title.slice(0, 500),
@@ -712,15 +717,23 @@ function esTituloGenerico(title: string): boolean {
   const t = normalizeText(title)
   return !t ||
     t.length < 18 ||
-    /^(pdf|html|xml|ver|abrir|descargar|descarga|anuncio|documento|texto|sumario|mas informacion|detalle|consultar|enlace)$/.test(t)
+    /^(pdf|html|xml|ver|abrir|descargar|descarga|anuncio|documento|texto|sumario|mas informacion|detalle|consultar|enlace)$/.test(t) ||
+    // Cabeceras de seccion y artefactos de feeds, no convocatorias reales
+    /^(i|ii|iii|iv|v|vi)[.\s]*(oposicion|oposicio|concurso)/.test(t) ||
+    /oposicions? e concursos/.test(t) ||
+    /^rss/i.test(t) ||
+    t.includes('<')
 }
 
 function esConvocatoriaInscribibleNormalizada(title: string): boolean {
   const t = normalizeText(title)
-  if (/(nombramiento|nombramientos|adjudica|adjudican|relacion de aprobados|lista de admitidos|lista provisional|lista definitiva|tribunal calificador|bolsa de empleo|subvencion|subvenciones|libre designacion|cargo intermedio|ofertan vacantes|personal aspirante seleccionado|organizaciones sindicales|voluntariado|extracto de convocatoria de subvenciones)/.test(t)) {
+  // Exclusiones en castellano, catalan/valenciano, gallego y euskera: actos que
+  // NO son convocatorias inscribibles (nombramientos, listas, revocaciones,
+  // resoluciones judiciales, bolsas, subvenciones...).
+  if (/(nombramiento|nombramientos|nomenament|nomeamento|izendapen|adjudica|adjudican|relacion de aprobados|lista de admitidos|lista provisional|lista definitiva|listaxe|llista|tribunal calificador|tribunal cualificador|bolsa de empleo|bolsa de trabajo|bolsa de emprego|borsa de treball|lista de espera|subvencion|subvenciones|subvencio|axuda|libre designacion|cargo intermedio|ofertan vacantes|personal aspirante seleccionado|organizaciones sindicales|voluntariado|extracto de convocatoria de subvenciones|revocado|revocada|revocacion|revogacion|revocacio|dejado sin efecto|deixa sense efecte|sen efecto|desistimiento|desistimento|desistiment|ejecucion de sentencia|execucion de sentenza|execucio de sentencia|sentenza|sentencia judicial|remision ao tribunal|remision al tribunal|contencioso[- ]administrativ|nulidad|nulidade|nulitat|en practicas|en practiques|funcionaria en practicas|funcionario en practicas|rectificacion da convocatoria|rectificacion de la convocatoria|correccion de erro|correccion de error|modificacion del tribunal|composicion del tribunal|designacion de tribunal)/.test(t)) {
     return false
   }
-  return /(oposicion|oposiciones|concurso-oposicion|proceso selectivo|procesos selectivos|pruebas selectivas|convocatoria.*plazas|convoca.*plazas|plazas?.*(funcionario|funcionaria|laboral|estatutario|estatutaria|administrativo|auxiliar|tecnico|policia|bombero)|personal .*fijo|profesor permanente laboral|funcionario|funcionaria|estatutario fijo|estatutaria fija)/.test(t)
+  return /(oposicion|oposiciones|concurso-oposicion|proceso selectivo|procesos selectivos|proceso de selecc|pruebas selectivas|convocatoria.*plazas|convoca.*plazas|plazas?.*(funcionario|funcionaria|laboral|estatutario|estatutaria|administrativo|auxiliar|tecnico|policia|bombero)|personal .*fijo|profesor permanente laboral|funcionario de carrera|funcionaria de carrera|estatutario fijo|estatutaria fija|concurso oposicion)/.test(t)
 }
 
 /**
@@ -801,12 +814,13 @@ async function fetchWithTimeout(
     }
   }
 
-  // Hasta 3 intentos ante fallos transitorios (timeout/red/WAF) de sedes lentas,
-  // con un breve backoff entre reintentos.
-  for (let i = 0; i < 3; i++) {
+  // Hasta 2 intentos ante fallos transitorios (timeout/red/WAF) de sedes lentas,
+  // con un breve backoff. Más reintentos alargan la ejecución y provocan 502
+  // del gateway sin apenas mejorar la cobertura.
+  for (let i = 0; i < 2; i++) {
     const resp = await intento()
     if (resp) return resp
-    if (i < 2) await new Promise((r) => setTimeout(r, 400 * (i + 1)))
+    if (i < 1) await new Promise((r) => setTimeout(r, 500))
   }
   return null
 }
@@ -1054,12 +1068,19 @@ function calcularPlazoNormalizado(texto: string, fechaPublicacion: Date): { inic
 }
 
 function extraerPlazas(texto: string): number | null {
-  const match = texto.match(/(\d{1,5})\s+plazas?/i)
-  return match ? Number(match[1]) : null
+  const match = texto.match(/(\d{1,4})\s+plazas?/i)
+  if (!match) return null
+  const n = Number(match[1])
+  // Tope de cordura: una convocatoria individual rara vez supera 2000 plazas;
+  // números mayores suelen ser artefactos del raspado (número de boletín, año...).
+  return n > 0 && n <= 2000 ? n : null
 }
 
 function nombreDesdeTitulo(title: string): string {
   return title
+    // Artefactos del raspado: prefijos "PDF - BOP-XX-fecha.pdf" o "PDF" sueltos
+    .replace(/^PDF\s*-?\s*[\w.-]*\.pdf\s*/i, '')
+    .replace(/^PDF\s+/i, '')
     .replace(/^Resoluci[oó]n.*?,\s*de\s+.*?,\s*/i, '')
     .replace(/^Orden.*?,\s*de\s+.*?,\s*/i, '')
     .replace(/^Anuncio.*?,\s*de\s+.*?,\s*/i, '')
@@ -1194,6 +1215,69 @@ async function crearNotificacion(
     await supabase.from('notificacion_destinatarios').upsert(rows, {
       onConflict: 'notificacion_id,usuario_id,canal',
     })
+  }
+}
+
+// ── SEO con IA ──────────────────────────────────────────────────────────────
+// Los títulos de los boletines son largos y burocráticos. Para cada oposición
+// nueva pedimos a Claude un título (~60 chars) y una meta description (~155)
+// limpios. Best-effort: sin ANTHROPIC_API_KEY o ante cualquier fallo, se omite
+// y la página SEO usa el nombre original.
+const SEO_IA_TIMEOUT_MS = 9000
+const SEO_IA_MAX_POR_EJECUCION = 15
+
+async function generarSeoConIa(
+  tituloOficial: string,
+  administracion: string,
+  plazas: number | null,
+): Promise<{ titulo: string; descripcion: string } | null> {
+  const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
+  if (!apiKey) return null
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), SEO_IA_TIMEOUT_MS)
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        messages: [{
+          role: 'user',
+          content: `Eres experto en SEO para un portal español de oposiciones. A partir de este anuncio oficial, genera un título SEO y una meta description en castellano.
+
+Anuncio oficial: ${tituloOficial.slice(0, 400)}
+Administración: ${administracion}
+${plazas ? `Plazas: ${plazas}` : ''}
+
+Reglas:
+- titulo: máximo 60 caracteres, claro y buscable (puesto + organismo). Sin comillas ni "Convocatoria de" al inicio si se puede evitar.
+- descripcion: máximo 155 caracteres, incluye plazas si las hay y una llamada a consultar plazos y preparar la oposición.
+
+Responde SOLO con JSON válido: {"titulo":"...","descripcion":"..."}`,
+        }],
+      }),
+    })
+    if (!resp.ok) return null
+    const data = await resp.json()
+    const texto: string = data?.content?.[0]?.text ?? ''
+    const jsonMatch = texto.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) return null
+    const parsed = JSON.parse(jsonMatch[0])
+    const titulo = String(parsed.titulo ?? '').trim().slice(0, 70)
+    const descripcion = String(parsed.descripcion ?? '').trim().slice(0, 170)
+    if (!titulo || !descripcion) return null
+    return { titulo, descripcion }
+  } catch (_) {
+    return null
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
@@ -1355,6 +1439,7 @@ Deno.serve(async (req) => {
     let publicadasSinPlazo = 0
     let descartadasCerradas = 0
     let yaExistentes = 0
+    let seoGenerados = 0
     const inicioBucle = Date.now()
 
     for (const item of items) {
@@ -1401,7 +1486,9 @@ Deno.serve(async (req) => {
       const administracion = administracionDesdeTitulo(item.title, item.sourceScope)
       const boeId = item.link.match(/id=([^&]+)/)?.[1]?.toLowerCase() ?? slugify(item.link)
       const slug = slugify(`${nombre}-${boeId}`)
-      const plazas = extraerPlazas(`${item.title} ${texto}`)
+      // Solo del título oficial: el texto completo de la página produce falsos
+      // positivos (números de boletín, expedientes...).
+      const plazas = extraerPlazas(item.title)
 
       const { data: oposicion, error: opError } = await supabase
         .from('oposiciones')
@@ -1501,6 +1588,18 @@ Deno.serve(async (req) => {
             : `${nombre} tiene plazo de inscripción abierto hasta el ${formatDate(plazo.fin)}.`,
           metadata: { fuente: item.sourceName, url: item.link, fecha_fin_instancias: formatDate(plazo.fin), plazo_estimado: plazoEstimado },
         })
+
+        // SEO con IA para la oposición recién creada (best-effort, acotado).
+        if (seoGenerados < SEO_IA_MAX_POR_EJECUCION) {
+          const seo = await generarSeoConIa(item.title, administracion, plazas)
+          if (seo) {
+            await supabase
+              .from('oposiciones')
+              .update({ seo_titulo: seo.titulo, seo_descripcion: seo.descripcion })
+              .eq('id', oposicion.id)
+            seoGenerados++
+          }
+        }
       }
     }
 
@@ -1534,6 +1633,7 @@ Deno.serve(async (req) => {
         fuentes_sin_resultados: fuentesSinResultados.length,
         publicadas,
         publicadas_sin_plazo_estimado: publicadasSinPlazo,
+        seo_ia_generados: seoGenerados,
         ya_existentes: yaExistentes,
         descartadas_cerradas: descartadasCerradas,
         timestamp: new Date().toISOString(),
