@@ -1305,10 +1305,12 @@ async function enviarResumenAdmin(resumen: {
   fuentesSinResultados: number
   fuentesError: Array<{ nombre: string; error: string }>
 }): Promise<void> {
-  const apiKey = Deno.env.get('RESEND_API_KEY')
+  const brevoKey = Deno.env.get('BREVO_API_KEY')
+  const resendKey = Deno.env.get('RESEND_API_KEY')
   const adminEmail = Deno.env.get('ADMIN_ALERT_EMAIL')
-  const from = Deno.env.get('RESEND_FROM_EMAIL') || 'Oposiwork <notificaciones@oposiwork.com>'
-  if (!apiKey || !adminEmail) return
+  const from = Deno.env.get('EMAIL_FROM') || Deno.env.get('RESEND_FROM_EMAIL') ||
+    'Oposiwork <notificaciones@oposiwork.com>'
+  if ((!brevoKey && !resendKey) || !adminEmail) return
 
   const listaErrores = resumen.fuentesError.length > 0
     ? `<ul>${resumen.fuentesError
@@ -1337,15 +1339,38 @@ async function enviarResumenAdmin(resumen: {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 8000)
   try {
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ from, to: adminEmail, subject: asunto, html }),
-      signal: controller.signal,
-    })
+    if (brevoKey) {
+      // Brevo (Sendinblue): el remitente debe estar verificado en la cuenta.
+      const remitente = from.match(/^(.*?)\s*<([^>]+)>$/)
+      const sender = remitente
+        ? { name: remitente[1].trim() || 'Oposiwork', email: remitente[2].trim() }
+        : { name: 'Oposiwork', email: from.trim() }
+      await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoKey,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          sender,
+          to: [{ email: adminEmail }],
+          subject: asunto,
+          htmlContent: html,
+        }),
+        signal: controller.signal,
+      })
+    } else {
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${resendKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ from, to: adminEmail, subject: asunto, html }),
+        signal: controller.signal,
+      })
+    }
   } finally {
     clearTimeout(timeout)
   }

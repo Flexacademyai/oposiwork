@@ -147,10 +147,47 @@ async function enviarPush(
   throw new Error(`FCM ${response.status}: ${text}`)
 }
 
+/** Extrae nombre y email de un remitente tipo "Nombre <email@dominio>". */
+function parsearRemitente(from: string): { name: string; email: string } {
+  const match = from.match(/^(.*?)\s*<([^>]+)>$/)
+  if (match) return { name: match[1].trim() || 'Oposiwork', email: match[2].trim() }
+  return { name: 'Oposiwork', email: from.trim() }
+}
+
+/**
+ * Envía email por Brevo si BREVO_API_KEY está configurada; si no, por Resend.
+ * El remitente debe estar verificado en el proveedor correspondiente.
+ */
 async function enviarEmail(email: string, subject: string, html: string) {
+  const brevoKey = env('BREVO_API_KEY')
+  const from = env('EMAIL_FROM') || env('RESEND_FROM_EMAIL') ||
+    'Oposiwork <notificaciones@oposiwork.com>'
+
+  if (brevoKey) {
+    const sender = parsearRemitente(from)
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': brevoKey,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        sender,
+        to: [{ email }],
+        subject,
+        htmlContent: html,
+      }),
+    })
+    if (!response.ok) {
+      const text = await response.text()
+      throw new Error(`Brevo ${response.status}: ${text}`)
+    }
+    return
+  }
+
   const apiKey = env('RESEND_API_KEY')
-  const from = env('RESEND_FROM_EMAIL') || 'Oposiwork <notificaciones@oposiwork.com>'
-  if (!apiKey) throw new Error('RESEND_API_KEY no configurado')
+  if (!apiKey) throw new Error('Ni BREVO_API_KEY ni RESEND_API_KEY configuradas')
 
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
