@@ -136,7 +136,7 @@ module.exports = async function handler(req, res) {
   <meta property="og:description" content="${escapeHtml(descripcion)}">
   <meta property="og:url" content="${urlCanonica}">
   <meta property="og:image" content="https://www.oposiwork.com/icons/Icon-512.png">
-  <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
+  <script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>
 </head>
 <body>
   <header class="site-header">
@@ -164,7 +164,7 @@ module.exports = async function handler(req, res) {
       <article class="legal-card">
         <ul>
           ${filasDatos.map(([k, v]) => `<li><strong>${k}:</strong> ${v}</li>`).join('\n          ')}
-          ${conv?.url_boe ? `<li><strong>Fuente oficial:</strong> <a href="${escapeHtml(conv.url_boe)}" rel="nofollow noopener" target="_blank">Ver boletín oficial</a></li>` : ''}
+          ${conv?.url_boe && /^https?:\/\//i.test(conv.url_boe) ? `<li><strong>Fuente oficial:</strong> <a href="${escapeHtml(conv.url_boe)}" rel="nofollow noopener" target="_blank">Ver boletín oficial</a></li>` : ''}
         </ul>
         ${plazoEstimado ? '<p><em>La fecha de fin de instancias es estimada. Confirma siempre el plazo en el boletín oficial.</em></p>' : ''}
       </article>
