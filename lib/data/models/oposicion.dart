@@ -5,6 +5,13 @@ class Oposicion {
   final String cuerpo;
   final String administracion;
   final String nivel;
+
+  /// Ámbito territorial: 'estatal', 'autonomico', 'provincial', 'local'
+  /// o 'universidad'. Puede ser null en datos antiguos.
+  final String? ambito;
+
+  /// Territorio legible ('España', 'Galicia', 'Valencia'...). Null si no consta.
+  final String? territorio;
   final bool tienePsicotecnicos;
   final bool tienePruebasFisicas;
   final bool activa;
@@ -17,6 +24,8 @@ class Oposicion {
     required this.cuerpo,
     required this.administracion,
     required this.nivel,
+    this.ambito,
+    this.territorio,
     required this.tienePsicotecnicos,
     required this.tienePruebasFisicas,
     required this.activa,
@@ -31,6 +40,8 @@ class Oposicion {
       cuerpo: map['cuerpo'] as String,
       administracion: map['administracion'] as String,
       nivel: map['nivel'] as String,
+      ambito: map['ambito'] as String?,
+      territorio: map['territorio'] as String?,
       tienePsicotecnicos: map['tiene_psicotecnicos'] as bool? ?? false,
       tienePruebasFisicas: map['tiene_pruebas_fisicas'] as bool? ?? false,
       activa: map['activa'] as bool? ?? true,
@@ -46,6 +57,8 @@ class Oposicion {
       'cuerpo': cuerpo,
       'administracion': administracion,
       'nivel': nivel,
+      'ambito': ambito,
+      'territorio': territorio,
       'tiene_psicotecnicos': tienePsicotecnicos,
       'tiene_pruebas_fisicas': tienePruebasFisicas,
       'activa': activa,

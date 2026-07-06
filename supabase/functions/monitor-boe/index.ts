@@ -1091,6 +1091,44 @@ function nombreDesdeTitulo(title: string): string {
     .slice(0, 160)
 }
 
+/// Ámbito (estatal/autonomico/provincial/local/universidad) y territorio
+/// legible, derivados del ámbito de la fuente y del organismo detectado.
+/// Alimenta los filtros de búsqueda de la app.
+function ambitoYTerritorio(
+  sourceScope: string,
+  administracion: string,
+): { ambito: string; territorio: string } {
+  const adminNorm = normalizeText(administracion)
+  const scope = sourceScope.trim()
+
+  let ambito: string
+  let territorio: string
+  if (scope === 'Estatal') {
+    ambito = 'estatal'
+    territorio = 'España'
+  } else if (scope.startsWith('Provincia de ')) {
+    ambito = 'provincial'
+    territorio = scope.slice('Provincia de '.length)
+  } else {
+    ambito = 'autonomico'
+    territorio = scope
+  }
+
+  if (/^(ayuntamiento|concello|ajuntament)/.test(adminNorm)) {
+    ambito = 'local'
+    const paren = administracion.match(/\(([^)]+)\)/)
+    if (paren) territorio = paren[1].trim()
+  } else if (adminNorm.startsWith('universidad')) {
+    ambito = 'universidad'
+    territorio = administracion.replace(/^Universidad (de |del )?/i, '').trim()
+  } else if (adminNorm.startsWith('diputacion')) {
+    ambito = 'provincial'
+    territorio = administracion.replace(/^Diputaci[oó]n (Provincial )?de /i, '').trim()
+  }
+
+  return { ambito, territorio }
+}
+
 function administracionDesdeTitulo(title: string, fallback: string): string {
   const universidad = title.match(/Universidad de ([A-ZÁÉÍÓÚÑ][^,.]+)/)
   if (universidad) return `Universidad de ${universidad[1].trim()}`
@@ -1520,6 +1558,7 @@ Deno.serve(async (req) => {
       // positivos (números de boletín, expedientes...).
       const plazas = extraerPlazas(item.title)
 
+      const clasificacion = ambitoYTerritorio(item.sourceScope, administracion)
       const { data: oposicion, error: opError } = await supabase
         .from('oposiciones')
         .upsert({
@@ -1528,6 +1567,8 @@ Deno.serve(async (req) => {
           cuerpo: nombre,
           administracion,
           nivel: 'N/D',
+          ambito: clasificacion.ambito,
+          territorio: clasificacion.territorio,
           tiene_psicotecnicos: false,
           tiene_pruebas_fisicas: false,
           activa: true,

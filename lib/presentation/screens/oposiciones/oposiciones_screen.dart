@@ -9,11 +9,68 @@ import '../../providers/oposiciones_provider.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/error_widget.dart';
 
-class OposicionesScreen extends ConsumerWidget {
+/// Filtros de ámbito disponibles (null = todas).
+const _ambitos = <({String? valor, String etiqueta})>[
+  (valor: null, etiqueta: 'Todas'),
+  (valor: 'estatal', etiqueta: 'Estatales'),
+  (valor: 'autonomico', etiqueta: 'Autonómicas'),
+  (valor: 'provincial', etiqueta: 'Provinciales'),
+  (valor: 'local', etiqueta: 'Locales'),
+  (valor: 'universidad', etiqueta: 'Universidades'),
+];
+
+class OposicionesScreen extends ConsumerStatefulWidget {
   const OposicionesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<OposicionesScreen> createState() => _OposicionesScreenState();
+}
+
+class _OposicionesScreenState extends ConsumerState<OposicionesScreen> {
+  String _busqueda = '';
+  String? _ambito;
+  String? _territorio;
+
+  /// Normaliza para buscar sin distinguir tildes ni mayúsculas.
+  static String _normalizar(String texto) {
+    const conTilde = 'áéíóúüñÁÉÍÓÚÜÑ';
+    const sinTilde = 'aeiouunAEIOUUN';
+    var salida = texto.toLowerCase();
+    for (var i = 0; i < conTilde.length; i++) {
+      salida = salida.replaceAll(conTilde[i], sinTilde[i].toLowerCase());
+    }
+    return salida;
+  }
+
+  List<OposicionConEstado> _filtrar(List<OposicionConEstado> todas) {
+    final consulta = _normalizar(_busqueda.trim());
+    return todas.where((item) {
+      final op = item.oposicion;
+      if (_ambito != null && op.ambito != _ambito) return false;
+      if (_territorio != null && op.territorio != _territorio) return false;
+      if (consulta.isEmpty) return true;
+      final texto = _normalizar(
+        '${op.nombre} ${op.administracion} ${op.territorio ?? ''}',
+      );
+      return texto.contains(consulta);
+    }).toList();
+  }
+
+  /// Territorios disponibles dentro del ámbito seleccionado, ordenados.
+  List<String> _territorios(List<OposicionConEstado> todas) {
+    final set = <String>{};
+    for (final item in todas) {
+      final op = item.oposicion;
+      if (_ambito != null && op.ambito != _ambito) continue;
+      final t = op.territorio;
+      if (t != null && t.isNotEmpty) set.add(t);
+    }
+    final lista = set.toList()..sort();
+    return lista;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final oposicionesAsync = ref.watch(oposicionesConEstadoProvider);
 
     return Scaffold(
@@ -33,27 +90,125 @@ class OposicionesScreen extends ConsumerWidget {
             return const _EstadoVacioOposiciones();
           }
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: oposiciones.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final op = oposiciones[index].oposicion;
-              final estado = oposiciones[index].estado;
-              return _TarjetaOposicion(
-                nombre: op.nombre,
-                cuerpo: op.cuerpo,
-                administracion: op.administracion,
-                nivel: op.nivel,
-                tienePsicotecnicos: op.tienePsicotecnicos,
-                tienePruebasFisicas: op.tienePruebasFisicas,
-                estado: estado,
-                onTap:
-                    () => context.push(
-                      AppRoutes.oposicionDetail.replaceFirst(':id', op.id),
+          final filtradas = _filtrar(oposiciones);
+          final territorios = _territorios(oposiciones);
+
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: TextField(
+                  onChanged: (v) => setState(() => _busqueda = v),
+                  decoration: InputDecoration(
+                    hintText: 'Buscar por puesto, provincia o localidad...',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon:
+                        _busqueda.isNotEmpty
+                            ? IconButton(
+                              icon: const Icon(Icons.close_rounded),
+                              onPressed: () => setState(() => _busqueda = ''),
+                            )
+                            : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-              );
-            },
+                    isDense: true,
+                  ),
+                ),
+              ),
+              SizedBox(
+                height: 48,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  children: [
+                    for (final opcion in _ambitos)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChip(
+                          label: Text(opcion.etiqueta),
+                          selected: _ambito == opcion.valor,
+                          onSelected:
+                              (_) => setState(() {
+                                _ambito = opcion.valor;
+                                // El territorio elegido puede no existir en el
+                                // nuevo ámbito: se resetea.
+                                _territorio = null;
+                              }),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (territorios.length > 1)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.place_rounded,
+                        size: 18,
+                        color: AppColors.textTertiary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButton<String?>(
+                          value: _territorio,
+                          isExpanded: true,
+                          hint: const Text('Todos los territorios'),
+                          underline: const SizedBox.shrink(),
+                          items: [
+                            const DropdownMenuItem<String?>(
+                              value: null,
+                              child: Text('Todos los territorios'),
+                            ),
+                            for (final t in territorios)
+                              DropdownMenuItem<String?>(
+                                value: t,
+                                child: Text(t),
+                              ),
+                          ],
+                          onChanged: (v) => setState(() => _territorio = v),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              Expanded(
+                child:
+                    filtradas.isEmpty
+                        ? const _SinResultadosFiltro()
+                        : ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: filtradas.length,
+                          separatorBuilder:
+                              (_, __) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final op = filtradas[index].oposicion;
+                            final estado = filtradas[index].estado;
+                            return _TarjetaOposicion(
+                              nombre: op.nombre,
+                              cuerpo: op.cuerpo,
+                              administracion: op.administracion,
+                              nivel: op.nivel,
+                              tienePsicotecnicos: op.tienePsicotecnicos,
+                              tienePruebasFisicas: op.tienePruebasFisicas,
+                              estado: estado,
+                              onTap:
+                                  () => context.push(
+                                    AppRoutes.oposicionDetail.replaceFirst(
+                                      ':id',
+                                      op.id,
+                                    ),
+                                  ),
+                            );
+                          },
+                        ),
+              ),
+            ],
           );
         },
         loading: () => const LoadingWidget(mensaje: 'Cargando oposiciones...'),
@@ -62,6 +217,42 @@ class OposicionesScreen extends ConsumerWidget {
               mensaje: e.toString(),
               onReintentar: () => ref.invalidate(oposicionesConEstadoProvider),
             ),
+      ),
+    );
+  }
+}
+
+class _SinResultadosFiltro extends StatelessWidget {
+  const _SinResultadosFiltro();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.filter_alt_off_rounded,
+              size: 56,
+              color: AppColors.textTertiary,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Sin resultados con estos filtros',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Prueba con otro término o cambia el ámbito o territorio.',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+            ),
+          ],
+        ),
       ),
     );
   }
