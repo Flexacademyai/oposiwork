@@ -40,9 +40,17 @@ const SOURCE_URL_OVERRIDES: Record<string, Pick<FuenteConvocatorias, 'url' | 'ty
 
 const SOURCE_FETCH_TIMEOUT_MS = 15000
 const DETAIL_FETCH_TIMEOUT_MS = 5000
-const MAX_DETAIL_ITEMS = 80
+const MAX_DETAIL_ITEMS = 250
 const MAX_ITEMS_PER_HTML_SOURCE = 120
 const SOURCE_CONCURRENCY = 12
+// Presupuesto de tiempo para el bucle de publicación: si se agota, devolvemos lo
+// hecho hasta el momento en vez de arriesgar un timeout duro de la Edge Function.
+const PUBLISH_TIME_BUDGET_MS = 110000
+// Cuando no se puede extraer el plazo del texto oficial, publicamos igualmente la
+// convocatoria con una fecha de fin ESTIMADA para no perderla (el opositor debe
+// confirmar en la fuente). 30 días naturales cubre el rango habitual (10-20 días
+// hábiles) sin cerrarla antes de tiempo.
+const DEFAULT_PLAZO_DIAS_ESTIMADO = 30
 
 const FUENTES_BASE: FuenteConvocatorias[] = [
   {
@@ -791,10 +799,14 @@ async function fetchWithTimeout(
     }
   }
 
-  // Un reintento ante fallos transitorios (timeout/red) de sedes lentas.
-  const primera = await intento()
-  if (primera) return primera
-  return await intento()
+  // Hasta 3 intentos ante fallos transitorios (timeout/red/WAF) de sedes lentas,
+  // con un breve backoff entre reintentos.
+  for (let i = 0; i < 3; i++) {
+    const resp = await intento()
+    if (resp) return resp
+    if (i < 2) await new Promise((r) => setTimeout(r, 400 * (i + 1)))
+  }
+  return null
 }
 
 async function mapLimit<T, R>(
@@ -1183,6 +1195,76 @@ async function crearNotificacion(
   }
 }
 
+function escapeHtml(texto: string): string {
+  return texto
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/**
+ * Envía al administrador un resumen de la ejecución del monitor: cuántas
+ * convocatorias se publicaron y, sobre todo, qué fuentes fallaron (posibles
+ * huecos de cobertura). Best-effort: si no hay Resend/ADMIN configurado, no hace
+ * nada. Requiere RESEND_API_KEY, RESEND_FROM_EMAIL y ADMIN_ALERT_EMAIL.
+ */
+async function enviarResumenAdmin(resumen: {
+  publicadas: number
+  publicadasSinPlazo: number
+  yaExistentes: number
+  descartadasCerradas: number
+  fuentesOk: number
+  fuentesSinResultados: number
+  fuentesError: Array<{ nombre: string; error: string }>
+}): Promise<void> {
+  const apiKey = Deno.env.get('RESEND_API_KEY')
+  const adminEmail = Deno.env.get('ADMIN_ALERT_EMAIL')
+  const from = Deno.env.get('RESEND_FROM_EMAIL') || 'Oposiwork <notificaciones@oposiwork.com>'
+  if (!apiKey || !adminEmail) return
+
+  const listaErrores = resumen.fuentesError.length > 0
+    ? `<ul>${resumen.fuentesError
+        .map((f) => `<li>${escapeHtml(f.nombre)} — ${escapeHtml(f.error || 'sin detalle')}</li>`)
+        .join('')}</ul>`
+    : '<p>Ninguna fuente falló. 🎉</p>'
+
+  const html = `
+    <h2>Resumen del monitor de convocatorias</h2>
+    <p><strong>${resumen.publicadas}</strong> convocatorias nuevas publicadas
+       (${resumen.publicadasSinPlazo} con plazo estimado),
+       ${resumen.yaExistentes} ya existentes,
+       ${resumen.descartadasCerradas} descartadas por plazo cerrado.</p>
+    <p>Fuentes: <strong>${resumen.fuentesOk}</strong> OK,
+       ${resumen.fuentesSinResultados} sin resultados,
+       <strong>${resumen.fuentesError.length}</strong> con error.</p>
+    <h3>Fuentes con error (posibles huecos de cobertura)</h3>
+    ${listaErrores}
+    <p style="color:#666;font-size:12px">Enviado automáticamente por monitor-boe.</p>
+  `
+
+  const asunto = resumen.fuentesError.length > 0
+    ? `⚠️ Monitor oposiciones: ${resumen.publicadas} nuevas · ${resumen.fuentesError.length} fuentes con error`
+    : `✅ Monitor oposiciones: ${resumen.publicadas} nuevas · todas las fuentes OK`
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 8000)
+  try {
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from, to: adminEmail, subject: asunto, html }),
+      signal: controller.signal,
+    })
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 Deno.serve(async (req) => {
   try {
     const cronSecret = req.headers.get('x-cron-secret')
@@ -1234,39 +1316,48 @@ Deno.serve(async (req) => {
     }
 
     const fuentesDb = await cargarFuentesDesdeDb(supabase)
-    const fuentes = combinarFuentes(fuentesDb, FUENTES_BASE, parseExtraSources())
-    const resultados = await mapLimit(fuentes, SOURCE_CONCURRENCY, async (source) => {
+    // FUENTES_BASE va primero: es la lista mantenida en código, con URLs corregidas
+    // y overrides. Así, ante URLs equivalentes, gana la del código y no la copia
+    // (a menudo peor) de la tabla `boletines`.
+    const fuentes = combinarFuentes(FUENTES_BASE, fuentesDb, parseExtraSources())
+    const auditoria = await mapLimit(fuentes, SOURCE_CONCURRENCY, async (source) => {
       try {
         const itemsFuente = await fetchFuente(source)
+        const estado = itemsFuente.length > 0 ? 'ok' : 'sin_resultados'
         await supabase.from('fuente_auditoria').insert({
           fuente_nombre: source.name,
           fuente_url: source.url,
           ambito: source.scope,
-          estado: itemsFuente.length > 0 ? 'ok' : 'sin_resultados',
+          estado,
           items_detectados: itemsFuente.length,
         })
-        return itemsFuente
+        return { source, items: itemsFuente, estado, error: null as string | null }
       } catch (err) {
+        const mensaje = err.message ?? String(err)
         await supabase.from('fuente_auditoria').insert({
           fuente_nombre: source.name,
           fuente_url: source.url,
           ambito: source.scope,
           estado: 'error',
           items_detectados: 0,
-          error: err.message ?? String(err),
+          error: mensaje,
         })
-        return []
+        return { source, items: [] as RssItem[], estado: 'error', error: mensaje }
       }
     })
-    const items = resultados
-      .flat()
+    const items = auditoria
+      .flatMap((a) => a.items)
       .filter((item) => esConvocatoriaInscribibleNormalizada(item.title))
       .slice(0, MAX_DETAIL_ITEMS)
     let publicadas = 0
-    let descartadasSinPlazo = 0
+    let publicadasSinPlazo = 0
+    let descartadasCerradas = 0
     let yaExistentes = 0
+    const inicioBucle = Date.now()
 
     for (const item of items) {
+      // Presupuesto de tiempo: si se agota, paramos y devolvemos lo hecho.
+      if (Date.now() - inicioBucle > PUBLISH_TIME_BUDGET_MS) break
       const existente = await supabase
         .from('convocatorias')
         .select('id, oposicion_id, fecha_publicacion_boe, fecha_inicio_instancias, fecha_fin_instancias, fecha_examen, plazas, estado, notas')
@@ -1285,9 +1376,22 @@ Deno.serve(async (req) => {
       const fechaPublicacion = item.pubDate
         ? parseFechaPublicacion(item)
         : parseFechaEspanola(texto) ?? parseFechaPublicacion(item)
-      const plazo = calcularPlazoNormalizado(texto, fechaPublicacion) ?? calcularPlazo(texto, fechaPublicacion)
-      if (!plazo || plazo.fin < hoy) {
-        descartadasSinPlazo++
+      const plazoDetectado = calcularPlazoNormalizado(texto, fechaPublicacion) ?? calcularPlazo(texto, fechaPublicacion)
+      let plazo = plazoDetectado
+      let plazoEstimado = false
+      if (!plazo) {
+        // No se pudo extraer el plazo del texto: publicamos igualmente con una
+        // fecha de fin estimada para no perder la convocatoria.
+        plazo = {
+          inicio: addDiasNaturales(fechaPublicacion, 1),
+          fin: addDiasNaturales(fechaPublicacion, DEFAULT_PLAZO_DIAS_ESTIMADO),
+          notas: `Plazo no detectado automaticamente; fecha de fin ESTIMADA (${DEFAULT_PLAZO_DIAS_ESTIMADO} dias). Confirma el plazo real en la fuente oficial.`,
+        }
+        plazoEstimado = true
+      }
+      // Si el plazo (real o estimado) ya venció, la consideramos cerrada y no la publicamos.
+      if (plazo.fin < hoy) {
+        descartadasCerradas++
         continue
       }
 
@@ -1373,6 +1477,7 @@ Deno.serve(async (req) => {
 
       if (!convError && convocatoria) {
         publicadas++
+        if (plazoEstimado) publicadasSinPlazo++
         await supabase.from('convocatoria_cambios').insert({
           convocatoria_id: convocatoria.id,
           oposicion_id: oposicion.id,
@@ -1389,19 +1494,46 @@ Deno.serve(async (req) => {
           oposicionId: oposicion.id,
           tipo: 'nueva_convocatoria',
           titulo: 'Nueva convocatoria abierta',
-          mensaje: `${nombre} tiene plazo de inscripción abierto hasta el ${formatDate(plazo.fin)}.`,
-          metadata: { fuente: item.sourceName, url: item.link, fecha_fin_instancias: formatDate(plazo.fin) },
+          mensaje: plazoEstimado
+            ? `${nombre} tiene el plazo de inscripción abierto. Confirma la fecha límite en la fuente oficial.`
+            : `${nombre} tiene plazo de inscripción abierto hasta el ${formatDate(plazo.fin)}.`,
+          metadata: { fuente: item.sourceName, url: item.link, fecha_fin_instancias: formatDate(plazo.fin), plazo_estimado: plazoEstimado },
         })
       }
+    }
+
+    // ── Alerta diaria de salud de fuentes ────────────────────────────────────
+    // Enviamos un resumen al administrador para SABER cuándo una fuente deja de
+    // funcionar (y por tanto podríamos estar perdiendo convocatorias) en vez de
+    // enterarnos por casualidad. Best-effort: nunca hace fallar el monitor.
+    const fuentesError = auditoria.filter((a) => a.estado === 'error')
+    const fuentesSinResultados = auditoria.filter((a) => a.estado === 'sin_resultados')
+    const fuentesOk = auditoria.filter((a) => a.estado === 'ok')
+    try {
+      await enviarResumenAdmin({
+        publicadas,
+        publicadasSinPlazo,
+        yaExistentes,
+        descartadasCerradas,
+        fuentesOk: fuentesOk.length,
+        fuentesSinResultados: fuentesSinResultados.length,
+        fuentesError: fuentesError.map((a) => ({ nombre: a.source.name, error: a.error ?? '' })),
+      })
+    } catch (err) {
+      console.error('monitor-boe: fallo al enviar resumen admin', err)
     }
 
     return new Response(
       JSON.stringify({
         procesados: items.length,
         fuentes_consultadas: fuentes.length,
+        fuentes_ok: fuentesOk.length,
+        fuentes_error: fuentesError.length,
+        fuentes_sin_resultados: fuentesSinResultados.length,
         publicadas,
+        publicadas_sin_plazo_estimado: publicadasSinPlazo,
         ya_existentes: yaExistentes,
-        descartadas_sin_plazo_abierto: descartadasSinPlazo,
+        descartadas_cerradas: descartadasCerradas,
         timestamp: new Date().toISOString(),
       }),
       { headers: { 'Content-Type': 'application/json' } },
