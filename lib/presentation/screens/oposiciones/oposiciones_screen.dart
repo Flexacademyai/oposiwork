@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../config/admin_config.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../data/repositories/oposiciones_repository.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/oposiciones_provider.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/error_widget.dart';
@@ -77,11 +79,15 @@ class _OposicionesScreenState extends ConsumerState<OposicionesScreen> {
       appBar: AppBar(
         title: const Text(AppStrings.todasLasOposiciones),
         actions: [
-          IconButton(
-            tooltip: 'Cobertura oficial',
-            icon: const Icon(Icons.public_rounded),
-            onPressed: () => context.push(AppRoutes.cobertura),
-          ),
+          // Panel interno de salud de fuentes: solo administradores.
+          if (AdminConfig.esAdmin(
+            ref.watch(supabaseClientProvider).auth.currentUser?.email,
+          ))
+            IconButton(
+              tooltip: 'Cobertura oficial (interno)',
+              icon: const Icon(Icons.public_rounded),
+              onPressed: () => context.push(AppRoutes.cobertura),
+            ),
         ],
       ),
       body: oposicionesAsync.when(

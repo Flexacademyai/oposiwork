@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'config/admin_config.dart';
 import 'core/constants/app_routes.dart';
 import 'core/constants/app_strings.dart';
 import 'core/theme/app_theme.dart';
@@ -66,6 +68,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.home, builder: (_, __) => const HomeScreen()),
       GoRoute(
         path: AppRoutes.cobertura,
+        // Panel interno: si un cliente teclea la URL, vuelve al inicio.
+        redirect:
+            (_, __) =>
+                AdminConfig.esAdmin(
+                      Supabase.instance.client.auth.currentUser?.email,
+                    )
+                    ? null
+                    : AppRoutes.home,
         builder: (_, __) => const CoberturaScreen(),
       ),
 
