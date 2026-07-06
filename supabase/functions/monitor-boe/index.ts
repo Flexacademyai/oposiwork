@@ -102,10 +102,11 @@ const FUENTES_BASE: FuenteConvocatorias[] = [
     type: 'html',
   },
   {
+    // Feed RSS oficial verificado (la portada HTML fallaba al leerse desde el edge)
     name: 'BOCYL - Castilla y Leon',
     scope: 'Castilla y Leon',
-    url: 'https://bocyl.jcyl.es/',
-    type: 'html',
+    url: 'https://bocyl.jcyl.es/rss.do',
+    type: 'rss',
   },
   {
     name: 'DOCM - Castilla-La Mancha',
@@ -174,9 +175,10 @@ const FUENTES_BASE: FuenteConvocatorias[] = [
     type: 'html',
   },
   {
-    name: 'BOME - Ceuta',
+    // El boletin de Ceuta se llama BOCCE; la ruta /bome dejo de existir
+    name: 'BOCCE - Ceuta',
     scope: 'Ceuta',
-    url: 'https://www.ceuta.es/ceuta/bome',
+    url: 'https://www.ceuta.es/ceuta/bocce',
     type: 'html',
   },
   {
@@ -200,7 +202,7 @@ const FUENTES_BASE: FuenteConvocatorias[] = [
   {
     name: 'BOP Alicante',
     scope: 'Provincia de Alicante',
-    url: 'https://bop.diputacionalicante.es/',
+    url: 'https://sede.diputacionalicante.es/consultas-bop/',
     type: 'html',
   },
   {
@@ -236,7 +238,7 @@ const FUENTES_BASE: FuenteConvocatorias[] = [
   {
     name: 'BOP Bizkaia',
     scope: 'Provincia de Bizkaia',
-    url: 'https://www.bizkaia.eus/lehendakaritza/Bao_bob/Boletines',
+    url: 'https://www.bizkaia.eus/es/bao',
     type: 'html',
   },
   {
@@ -290,7 +292,7 @@ const FUENTES_BASE: FuenteConvocatorias[] = [
   {
     name: 'BOP Girona',
     scope: 'Provincia de Girona',
-    url: 'https://ssl4.ddgi.cat/bopV1/',
+    url: 'https://www.ddgi.cat/bop/',
     type: 'html',
   },
   {
@@ -308,7 +310,7 @@ const FUENTES_BASE: FuenteConvocatorias[] = [
   {
     name: 'BOP Gipuzkoa',
     scope: 'Provincia de Gipuzkoa',
-    url: 'https://egoitza.gipuzkoa.eus/gao-bog/',
+    url: 'https://egoitza.gipuzkoa.eus/es/bog',
     type: 'html',
   },
   {
@@ -416,7 +418,7 @@ const FUENTES_BASE: FuenteConvocatorias[] = [
   {
     name: 'BOP Teruel',
     scope: 'Provincia de Teruel',
-    url: 'https://236ws.dpteruel.es/DPT/bopt.nsf',
+    url: 'https://bop.dpteruel.es/',
     type: 'html',
   },
   {
