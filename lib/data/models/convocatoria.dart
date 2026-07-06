@@ -64,8 +64,9 @@ class Convocatoria {
   bool get estaCerrada => estado == 'cerrada' || estado == 'suspendida';
 
   bool get instanciasAbiertas {
-    if (fechaInicioInstancias == null || fechaFinInstancias == null)
+    if (fechaInicioInstancias == null || fechaFinInstancias == null) {
       return false;
+    }
     final ahora = DateTime.now();
     return ahora.isAfter(fechaInicioInstancias!) &&
         ahora.isBefore(fechaFinInstancias!);
