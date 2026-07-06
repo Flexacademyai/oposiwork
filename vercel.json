@@ -12,6 +12,9 @@
   ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
+    { "source": "/oposiciones/:slug/", "destination": "/api/oposicion?slug=:slug" },
+    { "source": "/oposiciones/:slug", "destination": "/api/oposicion?slug=:slug" },
     { "source": "/app", "destination": "/app/index.html" },
     { "source": "/app/", "destination": "/app/index.html" },
     { "source": "/app/(.*)", "destination": "/app/index.html" }
