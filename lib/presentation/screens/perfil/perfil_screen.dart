@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../config/revenuecat_config.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
@@ -90,7 +91,14 @@ class PerfilScreen extends ConsumerWidget {
                         size: 16,
                         color: AppColors.textTertiary,
                       ),
-                      onTap: () {},
+                      // Sin ficha en tiendas todavía: la valoración llega por
+                      // email. Al publicar en App Store/Play, cambiar a
+                      // valoración nativa (in_app_review).
+                      onTap:
+                          () => _abrirEnlace(
+                            context,
+                            'mailto:soporte@oposiwork.com?subject=Mi%20opini%C3%B3n%20sobre%20Oposiwork',
+                          ),
                     ),
                     ListTile(
                       leading: const Icon(
@@ -99,11 +107,32 @@ class PerfilScreen extends ConsumerWidget {
                       ),
                       title: const Text('Política de privacidad'),
                       trailing: const Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 14,
+                        Icons.open_in_new,
+                        size: 16,
                         color: AppColors.textTertiary,
                       ),
-                      onTap: () {},
+                      onTap:
+                          () => _abrirEnlace(
+                            context,
+                            'https://www.oposiwork.com/privacidad/',
+                          ),
+                    ),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.description_outlined,
+                        color: AppColors.textSecondary,
+                      ),
+                      title: const Text('Términos de uso'),
+                      trailing: const Icon(
+                        Icons.open_in_new,
+                        size: 16,
+                        color: AppColors.textTertiary,
+                      ),
+                      onTap:
+                          () => _abrirEnlace(
+                            context,
+                            'https://www.oposiwork.com/terminos/',
+                          ),
                     ),
                   ]),
                   const SizedBox(height: 24),
@@ -244,6 +273,21 @@ class PerfilScreen extends ConsumerWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Abre un enlace externo (web legal, mailto...) en pestaña/app externa.
+  Future<void> _abrirEnlace(BuildContext context, String url) async {
+    final abierto = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!context.mounted || abierto) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('No se pudo abrir el enlace'),
+        backgroundColor: AppColors.textTertiary,
       ),
     );
   }
