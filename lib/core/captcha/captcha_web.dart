@@ -56,11 +56,12 @@ CaptchaHandle construirCaptcha({
   final estado = _EstadoCaptcha();
 
   ui_web.platformViewRegistry.registerViewFactory(viewType, (int _) {
-    final el = html.DivElement()
-      ..id = divId
-      ..style.width = '100%'
-      ..style.display = 'flex'
-      ..style.justifyContent = 'center';
+    final el =
+        html.DivElement()
+          ..id = divId
+          ..style.width = '100%'
+          ..style.display = 'flex'
+          ..style.justifyContent = 'center';
     _renderizar(divId, estado, onToken, onExpirado);
     return el;
   });
@@ -76,9 +77,10 @@ CaptchaHandle construirCaptcha({
 
 void _inyectarScript() {
   if (_scriptInyectado) return;
-  final src = CaptchaConfig.proveedor == 'turnstile'
-      ? 'https://challenges.cloudflare.com/turnstile/v0/api.js'
-      : 'https://js.hcaptcha.com/1/api.js';
+  final src =
+      CaptchaConfig.proveedor == 'turnstile'
+          ? 'https://challenges.cloudflare.com/turnstile/v0/api.js'
+          : 'https://js.hcaptcha.com/1/api.js';
   final yaPresente = html.document
       .querySelectorAll('script')
       .any((s) => (s as html.ScriptElement).src.contains(src));
@@ -112,15 +114,17 @@ void _renderizar(
     }
 
     final opciones = js.JsObject.jsify({'sitekey': CaptchaConfig.siteKey});
-    opciones['callback'] =
-        js.allowInterop((token) => onToken(token.toString()));
-    opciones['expired-callback'] =
-        js.allowInterop(([_]) => onExpirado?.call());
+    opciones['callback'] = js.allowInterop(
+      (token) => onToken(token.toString()),
+    );
+    opciones['expired-callback'] = js.allowInterop(([_]) => onExpirado?.call());
     opciones['error-callback'] = js.allowInterop(([_]) => onExpirado?.call());
 
     try {
-      estado.widgetId =
-          (api as js.JsObject).callMethod('render', [divId, opciones]);
+      estado.widgetId = (api as js.JsObject).callMethod('render', [
+        divId,
+        opciones,
+      ]);
       renderizado = true;
     } catch (_) {
       Future.delayed(const Duration(milliseconds: 300), intentar);

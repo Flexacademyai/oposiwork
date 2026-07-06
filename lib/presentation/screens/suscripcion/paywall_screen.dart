@@ -190,8 +190,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       children: [
         Checkbox(
           value: _consentimientoDesistimiento,
-          onChanged: (v) =>
-              setState(() => _consentimientoDesistimiento = v ?? false),
+          onChanged:
+              (v) => setState(() => _consentimientoDesistimiento = v ?? false),
           checkColor: AppColors.primary,
           fillColor: WidgetStateProperty.all(Colors.white),
         ),
@@ -202,7 +202,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               'Solicito el inicio inmediato del servicio y acepto que, al '
               'comenzar el acceso al contenido premium, pierdo el derecho de '
               'desistimiento (art. 103.m TRLGDCU).',
-              style: TextStyle(color: Colors.white.withAlpha(200), fontSize: 12),
+              style: TextStyle(
+                color: Colors.white.withAlpha(200),
+                fontSize: 12,
+              ),
             ),
           ),
         ),

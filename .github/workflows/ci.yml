@@ -40,13 +40,34 @@ jobs:
         run: flutter test --coverage
 
   # ─────────────────────────────────────────────
+  # Comprobar qué secrets están configurados
+  # (el contexto `secrets` no está disponible en if de job,
+  #  así que un job auxiliar expone flags como outputs)
+  # ─────────────────────────────────────────────
+  check-secrets:
+    name: Comprobar secrets
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    outputs:
+      build: ${{ steps.chk.outputs.build }}
+      supabase: ${{ steps.chk.outputs.supabase }}
+      vercel: ${{ steps.chk.outputs.vercel }}
+    steps:
+      - id: chk
+        run: |
+          echo "build=${{ secrets.SUPABASE_URL != '' }}" >> "$GITHUB_OUTPUT"
+          echo "supabase=${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+          echo "vercel=${{ secrets.VERCEL_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+
+  # ─────────────────────────────────────────────
   # Flutter Web: build + preparar estructura SEO
   # ─────────────────────────────────────────────
   flutter-web-build:
     name: Flutter Web — build
     runs-on: ubuntu-latest
-    needs: flutter-check
-    if: github.ref == 'refs/heads/master'
+    needs: [flutter-check, check-secrets]
+    # Se salta (sin fallar) mientras no haya secrets de build en GitHub
+    if: needs.check-secrets.outputs.build == 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -102,8 +123,9 @@ jobs:
   supabase-deploy:
     name: Supabase — funciones y migraciones
     runs-on: ubuntu-latest
-    needs: flutter-check
-    if: github.ref == 'refs/heads/master'
+    needs: [flutter-check, check-secrets]
+    # Se salta (sin fallar) mientras no haya secrets de Supabase en GitHub
+    if: needs.check-secrets.outputs.supabase == 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -136,8 +158,9 @@ jobs:
   vercel-deploy:
     name: Vercel — deploy web
     runs-on: ubuntu-latest
-    needs: flutter-web-build
-    if: github.ref == 'refs/heads/master'
+    needs: [flutter-web-build, check-secrets]
+    # Se salta (sin fallar) mientras no haya secrets de Vercel en GitHub
+    if: needs.check-secrets.outputs.vercel == 'true'
 
     steps:
       - uses: actions/checkout@v4

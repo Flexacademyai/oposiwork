@@ -12,11 +12,14 @@ final rachaActualProvider = FutureProvider<int>((ref) async {
   return ref.watch(progresoRepositoryProvider).obtenerRachaActual(usuario.id);
 });
 
-final progresoOposicionProvider = FutureProvider.family<
-    List<Map<String, dynamic>>, String>((ref, oposicionId) async {
-  final usuario = ref.watch(usuarioActualProvider);
-  if (usuario == null) return [];
-  return ref
-      .watch(progresoRepositoryProvider)
-      .obtenerProgresoOposicion(usuario.id, oposicionId);
-});
+final progresoOposicionProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, String>((
+      ref,
+      oposicionId,
+    ) async {
+      final usuario = ref.watch(usuarioActualProvider);
+      if (usuario == null) return [];
+      return ref
+          .watch(progresoRepositoryProvider)
+          .obtenerProgresoOposicion(usuario.id, oposicionId);
+    });

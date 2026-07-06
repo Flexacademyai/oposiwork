@@ -10,13 +10,16 @@ final oposicionesRepositoryProvider = Provider<OposicionesRepository>((ref) {
 });
 
 /// Todas las oposiciones activas (con o sin convocatoria abierta) — listado general.
-final todasLasOposicionesProvider = FutureProvider<List<Oposicion>>((ref) async {
+final todasLasOposicionesProvider = FutureProvider<List<Oposicion>>((
+  ref,
+) async {
   return ref.watch(oposicionesRepositoryProvider).obtenerTodasLasOposiciones();
 });
 
 /// Todas las oposiciones activas con su estado de inscripción (para badges).
-final oposicionesConEstadoProvider =
-    FutureProvider<List<OposicionConEstado>>((ref) async {
+final oposicionesConEstadoProvider = FutureProvider<List<OposicionConEstado>>((
+  ref,
+) async {
   return ref.watch(oposicionesRepositoryProvider).obtenerOposicionesConEstado();
 });
 

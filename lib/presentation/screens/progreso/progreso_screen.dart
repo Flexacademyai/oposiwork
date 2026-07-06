@@ -7,12 +7,13 @@ import '../../widgets/common/error_widget.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/premium_lock_widget.dart';
 
-final _progresoGlobalProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-  final supabase = ref.watch(supabaseClientProvider);
-  final user = supabase.auth.currentUser;
-  if (user == null) return {};
-  return ProgresoRepository(supabase).obtenerResumenProgreso(user.id);
-});
+final _progresoGlobalProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+      final supabase = ref.watch(supabaseClientProvider);
+      final user = supabase.auth.currentUser;
+      if (user == null) return {};
+      return ProgresoRepository(supabase).obtenerResumenProgreso(user.id);
+    });
 
 class ProgresoScreen extends ConsumerWidget {
   const ProgresoScreen({super.key});
@@ -50,26 +51,68 @@ class ProgresoScreen extends ConsumerWidget {
         children: [
           _buildTarjetaRacha(context, rachaActual),
           const SizedBox(height: 16),
-          Text('Resumen general', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          Text(
+            'Resumen general',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _buildMetrica(context, 'Temas', '$temasCompletados/$temasTotales', Icons.menu_book_outlined, AppColors.primary)),
+              Expanded(
+                child: _buildMetrica(
+                  context,
+                  'Temas',
+                  '$temasCompletados/$temasTotales',
+                  Icons.menu_book_outlined,
+                  AppColors.primary,
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _buildMetrica(context, 'Minutos', '$minutosEstudio', Icons.timer_outlined, AppColors.secondary)),
+              Expanded(
+                child: _buildMetrica(
+                  context,
+                  'Minutos',
+                  '$minutosEstudio',
+                  Icons.timer_outlined,
+                  AppColors.secondary,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _buildMetrica(context, 'Puntos', '$puntosTotales', Icons.star_outline_rounded, Colors.amber)),
+              Expanded(
+                child: _buildMetrica(
+                  context,
+                  'Puntos',
+                  '$puntosTotales',
+                  Icons.star_outline_rounded,
+                  Colors.amber,
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _buildMetrica(context, 'Racha', '${rachaActual}d', Icons.local_fire_department_outlined, Colors.orange)),
+              Expanded(
+                child: _buildMetrica(
+                  context,
+                  'Racha',
+                  '${rachaActual}d',
+                  Icons.local_fire_department_outlined,
+                  Colors.orange,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 24),
           if (temasTotales > 0) ...[
-            Text('Progreso temario', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            Text(
+              'Progreso temario',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
             Card(
               child: Padding(
@@ -82,13 +125,19 @@ class ProgresoScreen extends ConsumerWidget {
                         Text('Temas completados'),
                         Text(
                           '$temasCompletados de $temasTotales',
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 10),
                     LinearProgressIndicator(
-                      value: temasTotales > 0 ? temasCompletados / temasTotales : 0,
+                      value:
+                          temasTotales > 0
+                              ? temasCompletados / temasTotales
+                              : 0,
                       backgroundColor: AppColors.border,
                       color: AppColors.primary,
                       minHeight: 8,
@@ -130,10 +179,10 @@ class ProgresoScreen extends ConsumerWidget {
                   racha == 0
                       ? 'Empieza hoy tu racha'
                       : racha >= 30
-                          ? '¡Racha legendaria!'
-                          : racha >= 7
-                              ? '¡Semana perfecta!'
-                              : 'Sigue así',
+                      ? '¡Racha legendaria!'
+                      : racha >= 7
+                      ? '¡Semana perfecta!'
+                      : 'Sigue así',
                   style: TextStyle(color: AppColors.textSecondary),
                 ),
               ],
@@ -144,7 +193,13 @@ class ProgresoScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMetrica(BuildContext context, String titulo, String valor, IconData icono, Color color) {
+  Widget _buildMetrica(
+    BuildContext context,
+    String titulo,
+    String valor,
+    IconData icono,
+    Color color,
+  ) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -160,7 +215,10 @@ class ProgresoScreen extends ConsumerWidget {
                 color: color,
               ),
             ),
-            Text(titulo, style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            Text(
+              titulo,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            ),
           ],
         ),
       ),

@@ -11,13 +11,12 @@ import '../../widgets/common/premium_lock_widget.dart';
 
 final _flashcardsProvider = FutureProvider.autoDispose
     .family<List<Flashcard>, String>((ref, oposicionId) async {
-  final supabase = ref.watch(supabaseClientProvider);
-  final perfil = await ref.watch(perfilProvider.future);
-  return ContenidoRepository(supabase).obtenerFlashcardsParaRepasar(
-    oposicionId,
-    usuarioId: perfil?.id,
-  );
-});
+      final supabase = ref.watch(supabaseClientProvider);
+      final perfil = await ref.watch(perfilProvider.future);
+      return ContenidoRepository(
+        supabase,
+      ).obtenerFlashcardsParaRepasar(oposicionId, usuarioId: perfil?.id);
+    });
 
 class FlashcardsScreen extends ConsumerStatefulWidget {
   const FlashcardsScreen({super.key, required this.oposicionId});
@@ -50,7 +49,9 @@ class _FlashcardsScreenState extends ConsumerState<FlashcardsScreen> {
     final perfil = await ref.read(perfilProvider.future);
     if (perfil == null) return;
     final flashcard = flashcards[_indiceActual];
-    await ContenidoRepository(supabase).actualizarProgresoFlashcardConCalificacion(
+    await ContenidoRepository(
+      supabase,
+    ).actualizarProgresoFlashcardConCalificacion(
       flashcardId: flashcard.id,
       usuarioId: perfil.id,
       calificacion: calificacion,
@@ -71,19 +72,20 @@ class _FlashcardsScreenState extends ConsumerState<FlashcardsScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text('Sesión completada'),
-        content: Text('Has repasado $total flashcards. ¡Bien hecho!'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            child: const Text('Volver'),
+      builder:
+          (_) => AlertDialog(
+            title: const Text('Sesión completada'),
+            content: Text('Has repasado $total flashcards. ¡Bien hecho!'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                },
+                child: const Text('Volver'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -96,16 +98,18 @@ class _FlashcardsScreenState extends ConsumerState<FlashcardsScreen> {
         title: const Text('Flashcards'),
         actions: [
           async.whenOrNull(
-            data: (cards) => Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Center(
-                child: Text(
-                  '${_indiceActual + 1}/${cards.length}',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ) ?? const SizedBox.shrink(),
+                data:
+                    (cards) => Padding(
+                      padding: const EdgeInsets.only(right: 16),
+                      child: Center(
+                        child: Text(
+                          '${_indiceActual + 1}/${cards.length}',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+              ) ??
+              const SizedBox.shrink(),
         ],
       ),
       body: Stack(
@@ -117,7 +121,11 @@ class _FlashcardsScreenState extends ConsumerState<FlashcardsScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.check_circle_outline, size: 64, color: AppColors.success),
+                      Icon(
+                        Icons.check_circle_outline,
+                        size: 64,
+                        color: AppColors.success,
+                      ),
                       SizedBox(height: 16),
                       Text('Sin flashcards pendientes hoy'),
                       SizedBox(height: 8),
@@ -147,7 +155,9 @@ class _FlashcardsScreenState extends ConsumerState<FlashcardsScreen> {
                           tween: Tween(begin: _angulo, end: _angulo),
                           duration: const Duration(milliseconds: 400),
                           curve: Curves.easeInOut,
-                          builder: (context, value, child) => _buildTarjeta(flashcard, value),
+                          builder:
+                              (context, value, child) =>
+                                  _buildTarjeta(flashcard, value),
                         ),
                       ),
                     ),
@@ -178,9 +188,10 @@ class _FlashcardsScreenState extends ConsumerState<FlashcardsScreen> {
   Widget _buildTarjeta(Flashcard flashcard, double angulo) {
     final mostrarReverso = angulo > pi / 2;
     return Transform(
-      transform: Matrix4.identity()
-        ..setEntry(3, 2, 0.001)
-        ..rotateY(angulo),
+      transform:
+          Matrix4.identity()
+            ..setEntry(3, 2, 0.001)
+            ..rotateY(angulo),
       alignment: Alignment.center,
       child: Card(
         elevation: 4,
@@ -216,7 +227,10 @@ class _FlashcardsScreenState extends ConsumerState<FlashcardsScreen> {
                   transform: Matrix4.identity()..rotateY(pi),
                   alignment: Alignment.center,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primaryLight.withAlpha(30),
                       borderRadius: BorderRadius.circular(8),
@@ -248,11 +262,16 @@ class _FlashcardsScreenState extends ConsumerState<FlashcardsScreen> {
             child: OutlinedButton.icon(
               onPressed: () => _responder(flashcards, 0),
               icon: const Icon(Icons.close_rounded, color: AppColors.error),
-              label: const Text('No sabía', style: TextStyle(color: AppColors.error)),
+              label: const Text(
+                'No sabía',
+                style: TextStyle(color: AppColors.error),
+              ),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 side: const BorderSide(color: AppColors.error),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
@@ -260,12 +279,20 @@ class _FlashcardsScreenState extends ConsumerState<FlashcardsScreen> {
           Expanded(
             child: OutlinedButton.icon(
               onPressed: () => _responder(flashcards, 1),
-              icon: const Icon(Icons.help_outline_rounded, color: AppColors.warning),
-              label: const Text('Dudé', style: TextStyle(color: AppColors.warning)),
+              icon: const Icon(
+                Icons.help_outline_rounded,
+                color: AppColors.warning,
+              ),
+              label: const Text(
+                'Dudé',
+                style: TextStyle(color: AppColors.warning),
+              ),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 side: const BorderSide(color: AppColors.warning),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
@@ -274,11 +301,16 @@ class _FlashcardsScreenState extends ConsumerState<FlashcardsScreen> {
             child: ElevatedButton.icon(
               onPressed: () => _responder(flashcards, 2),
               icon: const Icon(Icons.check_rounded, color: Colors.white),
-              label: const Text('Lo sabía', style: TextStyle(color: Colors.white)),
+              label: const Text(
+                'Lo sabía',
+                style: TextStyle(color: Colors.white),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.success,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),

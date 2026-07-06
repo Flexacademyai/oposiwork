@@ -16,9 +16,10 @@ class ResultadoTestScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final porcentaje = total > 0 ? (correctas / total * 100).round() : 0;
     final aprobado = porcentaje >= 60;
-    final color = porcentaje >= 80
-        ? AppColors.success
-        : porcentaje >= 60
+    final color =
+        porcentaje >= 80
+            ? AppColors.success
+            : porcentaje >= 60
             ? AppColors.primary
             : AppColors.error;
 
@@ -54,16 +55,29 @@ class ResultadoTestScreen extends StatelessWidget {
                     ),
                     Text(
                       aprobado ? 'Aprobado' : 'Suspenso',
-                      style: TextStyle(color: color, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 40),
-            _buildFila(context, 'Preguntas correctas', '$correctas/$total', AppColors.success),
+            _buildFila(
+              context,
+              'Preguntas correctas',
+              '$correctas/$total',
+              AppColors.success,
+            ),
             const SizedBox(height: 12),
-            _buildFila(context, 'Preguntas incorrectas', '${total - correctas}/$total', AppColors.error),
+            _buildFila(
+              context,
+              'Preguntas incorrectas',
+              '${total - correctas}/$total',
+              AppColors.error,
+            ),
             const SizedBox(height: 12),
             _buildFila(context, 'Puntuación', '$porcentaje%', color),
             const SizedBox(height: 48),
@@ -73,7 +87,9 @@ class ResultadoTestScreen extends StatelessWidget {
                 onPressed: () => context.go('/home'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: const Text('Volver al inicio'),
               ),
@@ -89,7 +105,12 @@ class ResultadoTestScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFila(BuildContext context, String etiqueta, String valor, Color color) {
+  Widget _buildFila(
+    BuildContext context,
+    String etiqueta,
+    String valor,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
@@ -102,7 +123,11 @@ class ResultadoTestScreen extends StatelessWidget {
           Text(etiqueta, style: Theme.of(context).textTheme.bodyMedium),
           Text(
             valor,
-            style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 16),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: color,
+              fontSize: 16,
+            ),
           ),
         ],
       ),

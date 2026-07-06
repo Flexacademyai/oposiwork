@@ -13,7 +13,8 @@ class VozScreen extends ConsumerStatefulWidget {
   ConsumerState<VozScreen> createState() => _VozScreenState();
 }
 
-class _VozScreenState extends ConsumerState<VozScreen> with SingleTickerProviderStateMixin {
+class _VozScreenState extends ConsumerState<VozScreen>
+    with SingleTickerProviderStateMixin {
   bool _consentimientoAceptado = false;
   bool _iniciando = false;
   bool _sesionActiva = false;
@@ -44,12 +45,13 @@ class _VozScreenState extends ConsumerState<VozScreen> with SingleTickerProvider
     final supabase = ref.read(supabaseClientProvider);
     final user = supabase.auth.currentUser;
     if (user == null) return;
-    final data = await supabase
-        .from('consentimientos')
-        .select()
-        .eq('usuario_id', user.id)
-        .eq('tipo', 'voz')
-        .maybeSingle();
+    final data =
+        await supabase
+            .from('consentimientos')
+            .select()
+            .eq('usuario_id', user.id)
+            .eq('tipo', 'voz')
+            .maybeSingle();
     if (data != null && mounted) {
       setState(() => _consentimientoAceptado = true);
     } else if (mounted) {
@@ -61,36 +63,40 @@ class _VozScreenState extends ConsumerState<VozScreen> with SingleTickerProvider
     final aceptado = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text('Asistente de voz por IA'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'AVISO IMPORTANTE',
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.error),
+      builder:
+          (_) => AlertDialog(
+            title: const Text('Asistente de voz por IA'),
+            content: const Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'AVISO IMPORTANTE',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.error,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Esta función usa inteligencia artificial para generar voz sintética. Las respuestas son generadas automáticamente y pueden contener errores. Siempre contrasta la información con las fuentes oficiales del BOE antes de tu examen.',
+                  style: TextStyle(height: 1.5),
+                ),
+                SizedBox(height: 12),
+                Text('El uso tiene un límite mensual de tiempo según tu plan.'),
+              ],
             ),
-            SizedBox(height: 8),
-            Text(
-              'Esta función usa inteligencia artificial para generar voz sintética. Las respuestas son generadas automáticamente y pueden contener errores. Siempre contrasta la información con las fuentes oficiales del BOE antes de tu examen.',
-              style: TextStyle(height: 1.5),
-            ),
-            SizedBox(height: 12),
-            Text('El uso tiene un límite mensual de tiempo según tu plan.'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Rechazar'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Rechazar'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Entendido, continuar'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Entendido, continuar'),
-          ),
-        ],
-      ),
     );
 
     if (aceptado == true && mounted) {
@@ -136,7 +142,11 @@ class _VozScreenState extends ConsumerState<VozScreen> with SingleTickerProvider
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString().contains('cuota') ? 'Has agotado tu cuota mensual de voz.' : 'Error al iniciar la sesión de voz.'),
+            content: Text(
+              e.toString().contains('cuota')
+                  ? 'Has agotado tu cuota mensual de voz.'
+                  : 'Error al iniciar la sesión de voz.',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -198,16 +208,27 @@ class _VozScreenState extends ConsumerState<VozScreen> with SingleTickerProvider
                     color: AppColors.primary.withAlpha(20),
                     border: Border.all(color: AppColors.primary, width: 3),
                   ),
-                  child: const Icon(Icons.mic_rounded, size: 56, color: AppColors.primary),
+                  child: const Icon(
+                    Icons.mic_rounded,
+                    size: 56,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
               const Text(
                 'Sesión activa',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primary),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
               ),
               const SizedBox(height: 8),
-              Text(_formatCuota(_cuotaRestante), style: const TextStyle(color: AppColors.textSecondary)),
+              Text(
+                _formatCuota(_cuotaRestante),
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
               const SizedBox(height: 8),
               const Text(
                 'Habla para hacer preguntas sobre el temario',
@@ -224,7 +245,11 @@ class _VozScreenState extends ConsumerState<VozScreen> with SingleTickerProvider
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.warning_amber_outlined, color: Colors.orange, size: 18),
+                    Icon(
+                      Icons.warning_amber_outlined,
+                      color: Colors.orange,
+                      size: 18,
+                    ),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -238,20 +263,37 @@ class _VozScreenState extends ConsumerState<VozScreen> with SingleTickerProvider
               const SizedBox(height: 32),
               OutlinedButton.icon(
                 onPressed: _finalizarSesion,
-                icon: const Icon(Icons.stop_circle_outlined, color: AppColors.error),
-                label: const Text('Finalizar sesión', style: TextStyle(color: AppColors.error)),
+                icon: const Icon(
+                  Icons.stop_circle_outlined,
+                  color: AppColors.error,
+                ),
+                label: const Text(
+                  'Finalizar sesión',
+                  style: TextStyle(color: AppColors.error),
+                ),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 14,
+                  ),
                   side: const BorderSide(color: AppColors.error),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ] else ...[
-              const Icon(Icons.mic_none_rounded, size: 80, color: AppColors.textTertiary),
+              const Icon(
+                Icons.mic_none_rounded,
+                size: 80,
+                color: AppColors.textTertiary,
+              ),
               const SizedBox(height: 24),
               Text(
                 'Asistente de voz',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 12),
               const Text(
@@ -263,12 +305,17 @@ class _VozScreenState extends ConsumerState<VozScreen> with SingleTickerProvider
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: _consentimientoAceptado ? _iniciarSesion : _mostrarDialogoConsentimiento,
+                  onPressed:
+                      _consentimientoAceptado
+                          ? _iniciarSesion
+                          : _mostrarDialogoConsentimiento,
                   icon: const Icon(Icons.mic_rounded),
                   label: const Text('Iniciar sesión de voz'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),

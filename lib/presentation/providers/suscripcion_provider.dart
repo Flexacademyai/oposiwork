@@ -56,7 +56,9 @@ class SuscripcionNotifier extends AsyncNotifier<CustomerInfo?> {
     }
   }
 
-  Future<bool> comprarMensual({bool consentimientoDesistimiento = false}) async {
+  Future<bool> comprarMensual({
+    bool consentimientoDesistimiento = false,
+  }) async {
     if (!RevenueCatConfig.pagosHabilitados) return _pagoNoDisponible();
     if (kIsWeb) return _comprarWeb('monthly', consentimientoDesistimiento);
     return _comprarMovil(RevenueCatConfig.productoMensual);
@@ -108,7 +110,10 @@ class SuscripcionNotifier extends AsyncNotifier<CustomerInfo?> {
     }
   }
 
-  Future<bool> _comprarWeb(String plan, bool consentimientoDesistimiento) async {
+  Future<bool> _comprarWeb(
+    String plan,
+    bool consentimientoDesistimiento,
+  ) async {
     state = const AsyncLoading();
     _ultimoErrorPago = null;
     try {

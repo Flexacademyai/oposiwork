@@ -76,12 +76,14 @@ class AppStrings {
   static const String logros = 'Logros';
 
   // Errores
-  static const String errorGenerico = 'Ha ocurrido un error. Inténtalo de nuevo.';
+  static const String errorGenerico =
+      'Ha ocurrido un error. Inténtalo de nuevo.';
   static const String errorConexion = 'Sin conexión. Comprueba tu internet.';
   static const String errorCredenciales = 'Email o contraseña incorrectos.';
   static const String campoRequerido = 'Este campo es obligatorio';
   static const String emailInvalido = 'Introduce un email válido';
-  static const String contrasenaMuyCorta = 'La contraseña debe tener al menos 6 caracteres';
+  static const String contrasenaMuyCorta =
+      'La contraseña debe tener al menos 6 caracteres';
 
   // Estados de convocatoria
   static const String proxima = 'Próxima';

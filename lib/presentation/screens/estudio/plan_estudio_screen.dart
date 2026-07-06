@@ -20,9 +20,11 @@ class PlanEstudioScreen extends ConsumerWidget {
         child: perfilAsync.when(
           loading: () => const LoadingWidget(mensaje: 'Cargando plan...'),
           error: (_, __) => const AppErrorWidget(mensaje: 'Error al cargar'),
-          data: (perfil) => perfil == null
-              ? const Center(child: Text('No hay sesión activa'))
-              : _PlanContent(usuarioId: perfil.id),
+          data:
+              (perfil) =>
+                  perfil == null
+                      ? const Center(child: Text('No hay sesión activa'))
+                      : _PlanContent(usuarioId: perfil.id),
         ),
       ),
     );
@@ -50,13 +52,16 @@ class _PlanContentState extends State<_PlanContent> {
 
   Future<void> _cargar() async {
     try {
-      final uoData = await Supabase.instance.client
-          .from('usuario_oposiciones')
-          .select('oposicion_id, fecha_examen_objetivo, oposiciones(nombre, nivel)')
-          .eq('usuario_id', widget.usuarioId)
-          .eq('activa', true)
-          .limit(1)
-          .maybeSingle();
+      final uoData =
+          await Supabase.instance.client
+              .from('usuario_oposiciones')
+              .select(
+                'oposicion_id, fecha_examen_objetivo, oposiciones(nombre, nivel)',
+              )
+              .eq('usuario_id', widget.usuarioId)
+              .eq('activa', true)
+              .limit(1)
+              .maybeSingle();
 
       final progresoData = await Supabase.instance.client
           .from('progreso_temas')
@@ -65,10 +70,7 @@ class _PlanContentState extends State<_PlanContent> {
 
       if (mounted) {
         setState(() {
-          _datos = {
-            'oposicion': uoData,
-            'progreso': progresoData as List,
-          };
+          _datos = {'oposicion': uoData, 'progreso': progresoData as List};
           _cargando = false;
         });
       }
@@ -84,15 +86,17 @@ class _PlanContentState extends State<_PlanContent> {
     final oposicion = _datos?['oposicion'];
     final progreso = (_datos?['progreso'] as List?) ?? [];
 
-    final fechaExamen = oposicion?['fecha_examen_objetivo'] != null
-        ? DateTime.tryParse(oposicion!['fecha_examen_objetivo'] as String)
-        : null;
+    final fechaExamen =
+        oposicion?['fecha_examen_objetivo'] != null
+            ? DateTime.tryParse(oposicion!['fecha_examen_objetivo'] as String)
+            : null;
     final diasRestantes = fechaExamen?.difference(DateTime.now()).inDays;
 
     final temasTotal = progreso.length;
-    final temasCompletados = progreso
-        .where((p) => (p['porcentaje_completado'] as int? ?? 0) >= 100)
-        .length;
+    final temasCompletados =
+        progreso
+            .where((p) => (p['porcentaje_completado'] as int? ?? 0) >= 100)
+            .length;
     final temasPendientes = temasTotal - temasCompletados;
 
     return SingleChildScrollView(
@@ -111,34 +115,42 @@ class _PlanContentState extends State<_PlanContent> {
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 12),
-          Row(children: [
-            _StatCard(
+          Row(
+            children: [
+              _StatCard(
                 valor: '$temasCompletados',
                 label: 'Completados',
-                color: AppColors.success),
-            const SizedBox(width: 10),
-            _StatCard(
+                color: AppColors.success,
+              ),
+              const SizedBox(width: 10),
+              _StatCard(
                 valor: '$temasPendientes',
                 label: 'Pendientes',
-                color: AppColors.warning),
-            const SizedBox(width: 10),
-            _StatCard(
+                color: AppColors.warning,
+              ),
+              const SizedBox(width: 10),
+              _StatCard(
                 valor: '$temasTotal',
                 label: 'Total temas',
-                color: AppColors.info),
-          ]),
+                color: AppColors.info,
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
           if (temasTotal > 0) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Avance global',
-                    style: TextStyle(fontWeight: FontWeight.w500)),
+                const Text(
+                  'Avance global',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
                 Text(
                   '${((temasCompletados / temasTotal) * 100).round()}%',
                   style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary),
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
                 ),
               ],
             ),
@@ -180,29 +192,33 @@ class _PlanContentState extends State<_PlanContent> {
         color: AppColors.primary,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Row(children: [
-        const Text('🎯', style: TextStyle(fontSize: 32)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                nombre ?? 'Oposición activa',
-                style: const TextStyle(
+      child: Row(
+        children: [
+          const Text('🎯', style: TextStyle(fontSize: 32)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  nombre ?? 'Oposición activa',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
-                    fontSize: 14),
-                maxLines: 2,
-              ),
-              if (nivel != null)
-                Text('Grupo $nivel',
-                    style: const TextStyle(
-                        color: Colors.white70, fontSize: 12)),
-            ],
+                    fontSize: 14,
+                  ),
+                  maxLines: 2,
+                ),
+                if (nivel != null)
+                  Text(
+                    'Grupo $nivel',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+              ],
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 
@@ -212,8 +228,7 @@ class _PlanContentState extends State<_PlanContent> {
       texto =
           'Con $dias días, estudia ${(pendientes / (dias / 7)).ceil()} temas por semana para cubrir todo el temario.';
     } else if (pendientes == 0) {
-      texto =
-          '¡Temario completado! Enfócate en simulacros y repaso de fallos.';
+      texto = '¡Temario completado! Enfócate en simulacros y repaso de fallos.';
     } else {
       texto =
           'Configura tu fecha de examen para obtener recomendaciones personalizadas.';
@@ -228,19 +243,26 @@ class _PlanContentState extends State<_PlanContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(children: [
-            Icon(Icons.lightbulb_outline_rounded,
-                color: AppColors.info, size: 16),
-            SizedBox(width: 6),
-            Text('Recomendación',
+          const Row(
+            children: [
+              Icon(
+                Icons.lightbulb_outline_rounded,
+                color: AppColors.info,
+                size: 16,
+              ),
+              SizedBox(width: 6),
+              Text(
+                'Recomendación',
                 style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.info,
-                    fontSize: 13)),
-          ]),
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.info,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
-          Text(texto,
-              style: const TextStyle(fontSize: 13, height: 1.5)),
+          Text(texto, style: const TextStyle(fontSize: 13, height: 1.5)),
         ],
       ),
     );
@@ -262,19 +284,22 @@ class _TarjetaDias extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withAlpha(51)),
       ),
-      child: Row(children: [
-        Icon(Icons.timer_outlined, color: color, size: 24),
-        const SizedBox(width: 12),
-        Text(
-          '$dias días',
-          style: TextStyle(
+      child: Row(
+        children: [
+          Icon(Icons.timer_outlined, color: color, size: 24),
+          const SizedBox(width: 12),
+          Text(
+            '$dias días',
+            style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
-              color: color),
-        ),
-        const SizedBox(width: 8),
-        Text('para el examen', style: TextStyle(color: color)),
-      ]),
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text('para el examen', style: TextStyle(color: color)),
+        ],
+      ),
     );
   }
 }
@@ -292,28 +317,33 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Expanded(
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: color.withAlpha(20),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color.withAlpha(51)),
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withAlpha(20),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withAlpha(51)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            valor,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
           ),
-          child: Column(children: [
-            Text(
-              valor,
-              style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: color),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              color: AppColors.textSecondary,
             ),
-            Text(
-              label,
-              style: const TextStyle(
-                  fontSize: 10, color: AppColors.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-          ]),
-        ),
-      );
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    ),
+  );
 }

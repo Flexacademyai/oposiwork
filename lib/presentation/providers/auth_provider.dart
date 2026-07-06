@@ -70,7 +70,9 @@ class AuthNotifier extends AsyncNotifier<void> {
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      await ref.read(authRepositoryProvider).iniciarSesionConEmail(
+      await ref
+          .read(authRepositoryProvider)
+          .iniciarSesionConEmail(
             email: email,
             password: password,
             captchaToken: captchaToken,

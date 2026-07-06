@@ -13,5 +13,4 @@ class CaptchaHandle {
 CaptchaHandle construirCaptcha({
   required void Function(String token) onToken,
   void Function()? onExpirado,
-}) =>
-    CaptchaHandle(widget: const SizedBox.shrink(), reset: () {});
+}) => CaptchaHandle(widget: const SizedBox.shrink(), reset: () {});

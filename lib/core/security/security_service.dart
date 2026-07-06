@@ -6,8 +6,8 @@ class SecurityService {
   const SecurityService(this._supabase);
 
   static const _limites = {
-    'login':    (minuto: 5,  hora: 20),
-    'registro': (minuto: 3,  hora: 10),
+    'login': (minuto: 5, hora: 20),
+    'registro': (minuto: 3, hora: 10),
   };
 
   /// Llama a la función RPC [verificar_rate_limit] de Supabase.
@@ -19,11 +19,14 @@ class SecurityService {
     if (limites == null) return true;
 
     try {
-      final resultado = await _supabase.rpc('verificar_rate_limit', params: {
-        'p_accion': accion,
-        'p_limite_minuto': limites.minuto,
-        'p_limite_hora': limites.hora,
-      });
+      final resultado = await _supabase.rpc(
+        'verificar_rate_limit',
+        params: {
+          'p_accion': accion,
+          'p_limite_minuto': limites.minuto,
+          'p_limite_hora': limites.hora,
+        },
+      );
       return resultado as bool? ?? true;
     } catch (_) {
       return true;

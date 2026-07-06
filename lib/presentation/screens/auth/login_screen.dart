@@ -67,7 +67,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (CaptchaConfig.activoEnWeb && (_captchaToken?.isEmpty ?? true)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Completa la verificación de seguridad para continuar.'),
+          content: Text(
+            'Completa la verificación de seguridad para continuar.',
+          ),
         ),
       );
       return;

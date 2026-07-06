@@ -38,15 +38,17 @@ class Flashcard {
       intervalo: map['intervalo'] as int? ?? 1,
       repeticion: map['repeticion'] as int? ?? 0,
       facilidad: (map['facilidad'] as num?)?.toDouble() ?? 2.5,
-      proximaRevision: map['proxima_revision'] != null
-          ? DateTime.parse(map['proxima_revision'] as String)
-          : DateTime.now(),
+      proximaRevision:
+          map['proxima_revision'] != null
+              ? DateTime.parse(map['proxima_revision'] as String)
+              : DateTime.now(),
     );
   }
 
   /// SM-2: calificacion 0=mal, 1=difícil, 2=correcto, 3=fácil
   Flashcard calcularSiguienteRevision(int calificacion) {
-    double nuevaFacilidad = facilidad +
+    double nuevaFacilidad =
+        facilidad +
         (0.1 - (3 - calificacion) * (0.08 + (3 - calificacion) * 0.02));
     nuevaFacilidad = nuevaFacilidad.clamp(1.3, 2.5);
 
@@ -69,8 +71,7 @@ class Flashcard {
       intervalo: nuevoIntervalo,
       repeticion: nuevaRepeticion,
       facilidad: nuevaFacilidad,
-      proximaRevision:
-          DateTime.now().add(Duration(days: nuevoIntervalo)),
+      proximaRevision: DateTime.now().add(Duration(days: nuevoIntervalo)),
     );
   }
 

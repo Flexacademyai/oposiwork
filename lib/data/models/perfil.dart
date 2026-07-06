@@ -34,12 +34,14 @@ class Perfil {
       apellidos: map['apellidos'] as String?,
       avatarUrl: map['avatar_url'] as String?,
       plan: map['plan'] as String? ?? 'free',
-      planInicio: map['plan_inicio'] != null
-          ? DateTime.parse(map['plan_inicio'] as String)
-          : null,
-      planFin: map['plan_fin'] != null
-          ? DateTime.parse(map['plan_fin'] as String)
-          : null,
+      planInicio:
+          map['plan_inicio'] != null
+              ? DateTime.parse(map['plan_inicio'] as String)
+              : null,
+      planFin:
+          map['plan_fin'] != null
+              ? DateTime.parse(map['plan_fin'] as String)
+              : null,
       revenuecatId: map['revenuecat_id'] as String?,
       notificacionesPush: map['notificaciones_push'] as bool? ?? true,
       notificacionesEmail: map['notificaciones_email'] as bool? ?? true,

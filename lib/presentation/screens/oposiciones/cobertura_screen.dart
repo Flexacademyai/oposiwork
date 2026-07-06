@@ -27,11 +27,15 @@ class CoberturaScreen extends ConsumerWidget {
           children: [
             resumenAsync.when(
               data: (resumen) => _ResumenCoberturaCard(resumen: resumen),
-              loading: () => const LoadingWidget(mensaje: 'Comprobando cobertura...'),
-              error: (e, _) => AppErrorWidget(
-                mensaje: e.toString(),
-                onReintentar: () => ref.invalidate(resumenCoberturaProvider),
-              ),
+              loading:
+                  () =>
+                      const LoadingWidget(mensaje: 'Comprobando cobertura...'),
+              error:
+                  (e, _) => AppErrorWidget(
+                    mensaje: e.toString(),
+                    onReintentar:
+                        () => ref.invalidate(resumenCoberturaProvider),
+                  ),
             ),
             const SizedBox(height: 16),
             Text(
@@ -40,21 +44,26 @@ class CoberturaScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             fuentesAsync.when(
-              data: (fuentes) => Column(
-                children: fuentes
-                    .map(
-                      (fuente) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _FuenteCard(fuente: fuente),
-                      ),
-                    )
-                    .toList(),
-              ),
-              loading: () => const LoadingWidget(mensaje: 'Cargando fuentes...'),
-              error: (e, _) => AppErrorWidget(
-                mensaje: e.toString(),
-                onReintentar: () => ref.invalidate(fuentesCoberturaProvider),
-              ),
+              data:
+                  (fuentes) => Column(
+                    children:
+                        fuentes
+                            .map(
+                              (fuente) => Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _FuenteCard(fuente: fuente),
+                              ),
+                            )
+                            .toList(),
+                  ),
+              loading:
+                  () => const LoadingWidget(mensaje: 'Cargando fuentes...'),
+              error:
+                  (e, _) => AppErrorWidget(
+                    mensaje: e.toString(),
+                    onReintentar:
+                        () => ref.invalidate(fuentesCoberturaProvider),
+                  ),
             ),
           ],
         ),
@@ -70,14 +79,16 @@ class _ResumenCoberturaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final estadoColor = resumen.coberturaVerificada
-        ? AppColors.success
-        : resumen.fuentesConError > 0
+    final estadoColor =
+        resumen.coberturaVerificada
+            ? AppColors.success
+            : resumen.fuentesConError > 0
             ? AppColors.error
             : AppColors.warning;
-    final estadoTexto = resumen.coberturaVerificada
-        ? 'Cobertura auditada'
-        : 'Cobertura en revision';
+    final estadoTexto =
+        resumen.coberturaVerificada
+            ? 'Cobertura auditada'
+            : 'Cobertura en revision';
 
     return Card(
       child: Padding(
@@ -95,30 +106,50 @@ class _ResumenCoberturaCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
-                _Badge(texto: '${resumen.fuentesActivas} fuentes', color: estadoColor),
+                _Badge(
+                  texto: '${resumen.fuentesActivas} fuentes',
+                  color: estadoColor,
+                ),
               ],
             ),
             const SizedBox(height: 12),
             Text(
               'La app solo debe prometer cobertura nacional completa cuando todas las fuentes activas hayan sido auditadas sin errores recientes.',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
             ),
             const Divider(height: 24),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                _MetricChip(label: 'Nacionales', value: resumen.fuentesNacionales),
-                _MetricChip(label: 'Autonomicas', value: resumen.fuentesAutonomicas),
-                _MetricChip(label: 'Provinciales', value: resumen.fuentesProvinciales),
-                _MetricChip(label: 'Convocatorias abiertas', value: resumen.convocatoriasInscripcionAbierta),
+                _MetricChip(
+                  label: 'Nacionales',
+                  value: resumen.fuentesNacionales,
+                ),
+                _MetricChip(
+                  label: 'Autonomicas',
+                  value: resumen.fuentesAutonomicas,
+                ),
+                _MetricChip(
+                  label: 'Provinciales',
+                  value: resumen.fuentesProvinciales,
+                ),
+                _MetricChip(
+                  label: 'Convocatorias abiertas',
+                  value: resumen.convocatoriasInscripcionAbierta,
+                ),
                 _MetricChip(label: 'Fuentes OK', value: resumen.fuentesOk),
-                _MetricChip(label: 'Sin resultados', value: resumen.fuentesSinResultados),
+                _MetricChip(
+                  label: 'Sin resultados',
+                  value: resumen.fuentesSinResultados,
+                ),
                 _MetricChip(label: 'Errores', value: resumen.fuentesConError),
-                _MetricChip(label: 'Pendientes', value: resumen.fuentesPendientesAuditoria),
+                _MetricChip(
+                  label: 'Pendientes',
+                  value: resumen.fuentesPendientesAuditoria,
+                ),
               ],
             ),
             if (resumen.ultimaAuditoria != null) ...[
@@ -169,7 +200,9 @@ class _FuenteCard extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${fuente.ambito} · ${fuente.territorio ?? 'Sin territorio'} · ${fuente.tipo}'),
+            Text(
+              '${fuente.ambito} · ${fuente.territorio ?? 'Sin territorio'} · ${fuente.tipo}',
+            ),
             Text(
               'Estado: $estado · Items: ${fuente.itemsDetectados}',
               style: TextStyle(color: color, fontWeight: FontWeight.w600),
@@ -183,13 +216,14 @@ class _FuenteCard extends StatelessWidget {
               ),
           ],
         ),
-        trailing: fuente.url == null
-            ? null
-            : IconButton(
-                tooltip: 'Abrir fuente oficial',
-                icon: const Icon(Icons.open_in_new_rounded),
-                onPressed: () => launchUrl(Uri.parse(fuente.url!)),
-              ),
+        trailing:
+            fuente.url == null
+                ? null
+                : IconButton(
+                  tooltip: 'Abrir fuente oficial',
+                  icon: const Icon(Icons.open_in_new_rounded),
+                  onPressed: () => launchUrl(Uri.parse(fuente.url!)),
+                ),
       ),
     );
   }
@@ -238,4 +272,3 @@ class _Badge extends StatelessWidget {
     );
   }
 }
-

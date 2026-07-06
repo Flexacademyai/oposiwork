@@ -19,19 +19,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       emoji: '📚',
       titulo: 'Oposiwork',
       subtitulo: 'Prepara tu oposición con IA',
-      descripcion: 'El contenido oficial del BOE procesado y organizado para que estudies de forma eficiente.',
+      descripcion:
+          'El contenido oficial del BOE procesado y organizado para que estudies de forma eficiente.',
     ),
     _PaginaOnboarding(
       emoji: '📖',
       titulo: 'BOE procesado por IA',
       subtitulo: 'Resúmenes, artículos clave y conceptos',
-      descripcion: '28 temas organizados por bloques. Olvídate de leer el BOE en crudo.',
+      descripcion:
+          '28 temas organizados por bloques. Olvídate de leer el BOE en crudo.',
     ),
     _PaginaOnboarding(
       emoji: '🧠',
       titulo: 'Aprende activamente',
       subtitulo: 'Tests, flashcards y psicotécnicos',
-      descripcion: 'Repaso espaciado SM-2, simulacros cronometrados y asistente de IA para resolver dudas.',
+      descripcion:
+          'Repaso espaciado SM-2, simulacros cronometrados y asistente de IA para resolver dudas.',
     ),
   ];
 
@@ -93,8 +96,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                       ),
                       child: Text(
-                        _paginaActual < _paginas.length - 1 ? 'Siguiente' : 'Empezar',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        _paginaActual < _paginas.length - 1
+                            ? 'Siguiente'
+                            : 'Empezar',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
@@ -174,9 +182,9 @@ class _PaginaOnboarding extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             descripcion,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppColors.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
             textAlign: TextAlign.center,
           ),
         ],

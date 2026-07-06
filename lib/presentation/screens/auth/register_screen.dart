@@ -71,7 +71,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (CaptchaConfig.activoEnWeb && (_captchaToken?.isEmpty ?? true)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Completa la verificación de seguridad para continuar.'),
+          content: Text(
+            'Completa la verificación de seguridad para continuar.',
+          ),
         ),
       );
       return;

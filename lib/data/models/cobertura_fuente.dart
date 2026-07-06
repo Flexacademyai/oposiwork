@@ -75,4 +75,3 @@ class FuenteCobertura {
             estadoAuditoria == 'sin_resultados');
   }
 }
-

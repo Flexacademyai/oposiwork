@@ -16,10 +16,12 @@ const _preguntasPorSimulacro = 40;
 
 final _preguntasSimulacroProvider = FutureProvider.autoDispose
     .family<List<PreguntaTest>, String>((ref, oposicionId) async {
-  final supabase = ref.watch(supabaseClientProvider);
-  return ContenidoRepository(supabase)
-      .obtenerPreguntasTestPorOposicion(oposicionId, limite: _preguntasPorSimulacro);
-});
+      final supabase = ref.watch(supabaseClientProvider);
+      return ContenidoRepository(supabase).obtenerPreguntasTestPorOposicion(
+        oposicionId,
+        limite: _preguntasPorSimulacro,
+      );
+    });
 
 class SimulacroScreen extends ConsumerStatefulWidget {
   const SimulacroScreen({super.key});
@@ -56,13 +58,14 @@ class _SimulacroScreenState extends ConsumerState<SimulacroScreen> {
       setState(() => _cargandoOposicion = false);
       return;
     }
-    final data = await Supabase.instance.client
-        .from('usuario_oposiciones')
-        .select('oposicion_id')
-        .eq('usuario_id', perfil.id)
-        .eq('activa', true)
-        .limit(1)
-        .maybeSingle();
+    final data =
+        await Supabase.instance.client
+            .from('usuario_oposiciones')
+            .select('oposicion_id')
+            .eq('usuario_id', perfil.id)
+            .eq('activa', true)
+            .limit(1)
+            .maybeSingle();
     if (mounted) {
       setState(() {
         _oposicionId = data?['oposicion_id'] as String?;
@@ -93,7 +96,8 @@ class _SimulacroScreenState extends ConsumerState<SimulacroScreen> {
 
   void _finalizarSimulacro(List<PreguntaTest> preguntas) {
     _timer?.cancel();
-    final correctas = preguntas.where((p) => _respuestas[p.id] == p.respuestaCorrecta).length;
+    final correctas =
+        preguntas.where((p) => _respuestas[p.id] == p.respuestaCorrecta).length;
     final tiempoUsado = _duracionSimulacroMinutos * 60 - _segundosRestantes;
     _guardarResultado(preguntas.length, correctas, tiempoUsado);
     if (mounted) {
@@ -142,7 +146,9 @@ class _SimulacroScreenState extends ConsumerState<SimulacroScreen> {
       return Scaffold(
         appBar: AppBar(title: const Text('Simulacro')),
         body: const Center(
-          child: Text('No tienes ninguna oposición activa.\nSelecciona una oposición primero.'),
+          child: Text(
+            'No tienes ninguna oposición activa.\nSelecciona una oposición primero.',
+          ),
         ),
       );
     }
@@ -199,15 +205,26 @@ class _SimulacroScreenState extends ConsumerState<SimulacroScreen> {
             const SizedBox(height: 24),
             Text(
               'Simulacro de examen',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            _buildInfoRow(Icons.help_outline_rounded, '$numPreguntas preguntas'),
+            _buildInfoRow(
+              Icons.help_outline_rounded,
+              '$numPreguntas preguntas',
+            ),
             const SizedBox(height: 8),
-            _buildInfoRow(Icons.timer_outlined, '$_duracionSimulacroMinutos minutos'),
+            _buildInfoRow(
+              Icons.timer_outlined,
+              '$_duracionSimulacroMinutos minutos',
+            ),
             const SizedBox(height: 8),
-            _buildInfoRow(Icons.warning_amber_outlined, 'No podrás pausar el cronómetro'),
+            _buildInfoRow(
+              Icons.warning_amber_outlined,
+              'No podrás pausar el cronómetro',
+            ),
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
@@ -215,9 +232,14 @@ class _SimulacroScreenState extends ConsumerState<SimulacroScreen> {
                 onPressed: _iniciar,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: const Text('Comenzar simulacro', style: TextStyle(fontSize: 16)),
+                child: const Text(
+                  'Comenzar simulacro',
+                  style: TextStyle(fontSize: 16),
+                ),
               ),
             ),
           ],
@@ -261,11 +283,17 @@ class _SimulacroScreenState extends ConsumerState<SimulacroScreen> {
             children: [
               Text(
                 'Pregunta ${_indice + 1} de ${preguntas.length}',
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                ),
               ),
               Text(
                 '${_respuestas.length} respondidas',
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                ),
               ),
             ],
           ),
@@ -278,7 +306,9 @@ class _SimulacroScreenState extends ConsumerState<SimulacroScreen> {
               children: [
                 Text(
                   pregunta.enunciado,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(height: 1.5),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(height: 1.5),
                 ),
                 const SizedBox(height: 20),
                 ...opciones.entries.map((e) {
@@ -289,7 +319,10 @@ class _SimulacroScreenState extends ConsumerState<SimulacroScreen> {
                       margin: const EdgeInsets.only(bottom: 10),
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: elegida ? AppColors.primary.withAlpha(15) : Colors.transparent,
+                        color:
+                            elegida
+                                ? AppColors.primary.withAlpha(15)
+                                : Colors.transparent,
                         border: Border.all(
                           color: elegida ? AppColors.primary : AppColors.border,
                           width: elegida ? 2 : 1,
@@ -302,7 +335,10 @@ class _SimulacroScreenState extends ConsumerState<SimulacroScreen> {
                             e.key.toUpperCase(),
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: elegida ? AppColors.primary : AppColors.textSecondary,
+                              color:
+                                  elegida
+                                      ? AppColors.primary
+                                      : AppColors.textSecondary,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -331,7 +367,9 @@ class _SimulacroScreenState extends ConsumerState<SimulacroScreen> {
                     onPressed: () => setState(() => _indice--),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: const Text('Anterior'),
                   ),
@@ -339,24 +377,32 @@ class _SimulacroScreenState extends ConsumerState<SimulacroScreen> {
               if (_indice > 0) const SizedBox(width: 12),
               Expanded(
                 flex: 2,
-                child: _indice < preguntas.length - 1
-                    ? ElevatedButton(
-                        onPressed: () => setState(() => _indice++),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child:
+                    _indice < preguntas.length - 1
+                        ? ElevatedButton(
+                          onPressed: () => setState(() => _indice++),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('Siguiente'),
+                        )
+                        : ElevatedButton(
+                          onPressed: () => _finalizarSimulacro(preguntas),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.success,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Entregar',
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
-                        child: const Text('Siguiente'),
-                      )
-                    : ElevatedButton(
-                        onPressed: () => _finalizarSimulacro(preguntas),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.success,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text('Entregar', style: TextStyle(color: Colors.white)),
-                      ),
               ),
             ],
           ),

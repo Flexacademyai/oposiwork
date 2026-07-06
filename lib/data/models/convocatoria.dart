@@ -33,18 +33,22 @@ class Convocatoria {
     return Convocatoria(
       id: map['id'] as String,
       oposicionId: map['oposicion_id'] as String,
-      fechaPublicacionBoe: map['fecha_publicacion_boe'] != null
-          ? DateTime.parse(map['fecha_publicacion_boe'] as String)
-          : null,
-      fechaInicioInstancias: map['fecha_inicio_instancias'] != null
-          ? DateTime.parse(map['fecha_inicio_instancias'] as String)
-          : null,
-      fechaFinInstancias: map['fecha_fin_instancias'] != null
-          ? DateTime.parse(map['fecha_fin_instancias'] as String)
-          : null,
-      fechaExamen: map['fecha_examen'] != null
-          ? DateTime.parse(map['fecha_examen'] as String)
-          : null,
+      fechaPublicacionBoe:
+          map['fecha_publicacion_boe'] != null
+              ? DateTime.parse(map['fecha_publicacion_boe'] as String)
+              : null,
+      fechaInicioInstancias:
+          map['fecha_inicio_instancias'] != null
+              ? DateTime.parse(map['fecha_inicio_instancias'] as String)
+              : null,
+      fechaFinInstancias:
+          map['fecha_fin_instancias'] != null
+              ? DateTime.parse(map['fecha_fin_instancias'] as String)
+              : null,
+      fechaExamen:
+          map['fecha_examen'] != null
+              ? DateTime.parse(map['fecha_examen'] as String)
+              : null,
       fechaExamenConfirmada: map['fecha_examen_confirmada'] as bool? ?? false,
       plazas: map['plazas'] as int?,
       estado: map['estado'] as String? ?? 'abierta',
@@ -60,9 +64,11 @@ class Convocatoria {
   bool get estaCerrada => estado == 'cerrada' || estado == 'suspendida';
 
   bool get instanciasAbiertas {
-    if (fechaInicioInstancias == null || fechaFinInstancias == null) return false;
+    if (fechaInicioInstancias == null || fechaFinInstancias == null)
+      return false;
     final ahora = DateTime.now();
-    return ahora.isAfter(fechaInicioInstancias!) && ahora.isBefore(fechaFinInstancias!);
+    return ahora.isAfter(fechaInicioInstancias!) &&
+        ahora.isBefore(fechaFinInstancias!);
   }
 
   int? get diasParaExamen {

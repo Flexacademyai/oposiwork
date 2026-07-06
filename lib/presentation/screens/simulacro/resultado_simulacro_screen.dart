@@ -18,9 +18,10 @@ class ResultadoSimulacroScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final porcentaje = total > 0 ? (correctas / total * 100).round() : 0;
     final aprobado = porcentaje >= 60;
-    final color = porcentaje >= 80
-        ? AppColors.success
-        : porcentaje >= 60
+    final color =
+        porcentaje >= 80
+            ? AppColors.success
+            : porcentaje >= 60
             ? AppColors.primary
             : AppColors.error;
     final minutos = tiempoSegundos ~/ 60;
@@ -50,24 +51,56 @@ class ResultadoSimulacroScreen extends StatelessWidget {
                   children: [
                     Text(
                       '$porcentaje%',
-                      style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: color),
+                      style: TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
                     ),
                     Text(
                       aprobado ? '¡Aprobado!' : 'Suspenso',
-                      style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 15),
+                      style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 36),
-            _buildFila(context, Icons.check_circle_outline, 'Respuestas correctas', '$correctas de $total', AppColors.success),
+            _buildFila(
+              context,
+              Icons.check_circle_outline,
+              'Respuestas correctas',
+              '$correctas de $total',
+              AppColors.success,
+            ),
             const SizedBox(height: 10),
-            _buildFila(context, Icons.cancel_outlined, 'Respuestas incorrectas', '${total - correctas} de $total', AppColors.error),
+            _buildFila(
+              context,
+              Icons.cancel_outlined,
+              'Respuestas incorrectas',
+              '${total - correctas} de $total',
+              AppColors.error,
+            ),
             const SizedBox(height: 10),
-            _buildFila(context, Icons.timer_outlined, 'Tiempo empleado', '${minutos}m ${segundos}s', AppColors.primary),
+            _buildFila(
+              context,
+              Icons.timer_outlined,
+              'Tiempo empleado',
+              '${minutos}m ${segundos}s',
+              AppColors.primary,
+            ),
             const SizedBox(height: 10),
-            _buildFila(context, Icons.grade_outlined, 'Nota', '$porcentaje / 100', color),
+            _buildFila(
+              context,
+              Icons.grade_outlined,
+              'Nota',
+              '$porcentaje / 100',
+              color,
+            ),
             const SizedBox(height: 40),
             if (!aprobado)
               Container(
@@ -97,7 +130,9 @@ class ResultadoSimulacroScreen extends StatelessWidget {
                 onPressed: () => context.go('/home'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: const Text('Volver al inicio'),
               ),
@@ -108,7 +143,13 @@ class ResultadoSimulacroScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFila(BuildContext context, IconData icono, String etiqueta, String valor, Color color) {
+  Widget _buildFila(
+    BuildContext context,
+    IconData icono,
+    String etiqueta,
+    String valor,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
@@ -120,7 +161,10 @@ class ResultadoSimulacroScreen extends StatelessWidget {
           Icon(icono, color: color, size: 20),
           const SizedBox(width: 12),
           Expanded(child: Text(etiqueta)),
-          Text(valor, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
+          Text(
+            valor,
+            style: TextStyle(fontWeight: FontWeight.bold, color: color),
+          ),
         ],
       ),
     );
