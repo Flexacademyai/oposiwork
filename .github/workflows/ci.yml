@@ -136,10 +136,15 @@ jobs:
           version: latest
 
       # Las migraciones se aplican vía Management API en desarrollo; este paso
-      # solo corre si algún día se configura SUPABASE_DB_PASSWORD en GitHub.
+      # solo actúa si algún día se configura SUPABASE_DB_PASSWORD en GitHub.
+      # (El contexto `secrets` no se permite en `if`, por eso se comprueba en shell.)
       - name: Aplicar migraciones
-        if: ${{ secrets.SUPABASE_DB_PASSWORD != '' }}
-        run: supabase db push --linked
+        run: |
+          if [ -z "$SUPABASE_DB_PASSWORD" ]; then
+            echo "SUPABASE_DB_PASSWORD no configurado: migraciones omitidas (se aplican vía API)."
+            exit 0
+          fi
+          supabase db push --linked
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
