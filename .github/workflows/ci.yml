@@ -135,20 +135,26 @@ jobs:
         with:
           version: latest
 
+      # Las migraciones se aplican vía Management API en desarrollo; este paso
+      # solo corre si algún día se configura SUPABASE_DB_PASSWORD en GitHub.
       - name: Aplicar migraciones
+        if: ${{ secrets.SUPABASE_DB_PASSWORD != '' }}
         run: supabase db push --linked
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
+      # OJO: monitor-boe, send-notifications y verify-subscription usan
+      # autenticación propia (cron secret / firma) — desplegar SIN verify_jwt
+      # o el gateway bloquearía el cron y los webhooks.
       - name: Deploy Edge Functions
         run: |
-          supabase functions deploy download-pdf --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
-          supabase functions deploy verify-subscription --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
-          supabase functions deploy chat-rag --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
-          supabase functions deploy monitor-boe --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
-          supabase functions deploy crear-sesion-voz --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
-          supabase functions deploy send-notifications --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          supabase functions deploy download-pdf --use-api --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          supabase functions deploy verify-subscription --use-api --no-verify-jwt --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          supabase functions deploy chat-rag --use-api --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          supabase functions deploy monitor-boe --use-api --no-verify-jwt --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          supabase functions deploy crear-sesion-voz --use-api --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          supabase functions deploy send-notifications --use-api --no-verify-jwt --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
