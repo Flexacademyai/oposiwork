@@ -300,6 +300,43 @@ class OposicionesRepository {
     }).toList();
   }
 
+  // ── "Sigue tu territorio": alertas por provincia/comunidad ──────────────
+
+  /// Territorios a los que el usuario está suscrito para recibir alertas
+  /// de cualquier convocatoria nueva publicada en ellos.
+  Future<Set<String>> obtenerTerritoriosSeguidos(String usuarioId) async {
+    final data = await _supabase
+        .from('usuario_territorios')
+        .select('territorio')
+        .eq('usuario_id', usuarioId)
+        .eq('activa', true);
+    return (data as List)
+        .map((e) => (e as Map<String, dynamic>)['territorio'] as String)
+        .toSet();
+  }
+
+  Future<void> seguirTerritorio({
+    required String usuarioId,
+    required String territorio,
+  }) async {
+    await _supabase.from('usuario_territorios').upsert({
+      'usuario_id': usuarioId,
+      'territorio': territorio,
+      'activa': true,
+    }, onConflict: 'usuario_id,territorio');
+  }
+
+  Future<void> dejarDeSeguirTerritorio({
+    required String usuarioId,
+    required String territorio,
+  }) async {
+    await _supabase
+        .from('usuario_territorios')
+        .update({'activa': false})
+        .eq('usuario_id', usuarioId)
+        .eq('territorio', territorio);
+  }
+
   Future<bool> usuarioSigueOposicion({
     required String usuarioId,
     required String oposicionId,

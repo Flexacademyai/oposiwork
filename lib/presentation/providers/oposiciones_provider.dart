@@ -62,6 +62,49 @@ final usuarioSigueOposicionProvider = FutureProvider.autoDispose
           .usuarioSigueOposicion(usuarioId: userId, oposicionId: oposicionId);
     });
 
+/// Territorios con alertas activadas por el usuario ("Sigue tu territorio").
+final territoriosSeguidosProvider = FutureProvider.autoDispose<Set<String>>((
+  ref,
+) async {
+  final userId = ref.watch(usuarioActualProvider)?.id;
+  if (userId == null) return <String>{};
+  return ref
+      .watch(oposicionesRepositoryProvider)
+      .obtenerTerritoriosSeguidos(userId);
+});
+
+final seguimientoTerritorioControllerProvider =
+    Provider<SeguimientoTerritorioController>((ref) {
+      return SeguimientoTerritorioController(ref);
+    });
+
+class SeguimientoTerritorioController {
+  SeguimientoTerritorioController(this._ref);
+
+  final Ref _ref;
+
+  Future<void> cambiarSeguimiento({
+    required String territorio,
+    required bool seguir,
+  }) async {
+    final userId = _ref.read(usuarioActualProvider)?.id;
+    if (userId == null) return;
+    final repository = _ref.read(oposicionesRepositoryProvider);
+    if (seguir) {
+      await repository.seguirTerritorio(
+        usuarioId: userId,
+        territorio: territorio,
+      );
+    } else {
+      await repository.dejarDeSeguirTerritorio(
+        usuarioId: userId,
+        territorio: territorio,
+      );
+    }
+    _ref.invalidate(territoriosSeguidosProvider);
+  }
+}
+
 final seguimientoOposicionControllerProvider =
     Provider<SeguimientoOposicionController>((ref) {
       return SeguimientoOposicionController(ref);

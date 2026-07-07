@@ -1195,6 +1195,9 @@ async function crearNotificacion(
     titulo: string
     mensaje: string
     metadata?: Record<string, unknown>
+    // "Sigue tu territorio": si viene informado, también se notifica a los
+    // usuarios suscritos a este territorio aunque no sigan la oposición.
+    territorio?: string | null
   },
 ) {
   const { data: notificacion, error } = await supabase
@@ -1222,6 +1225,20 @@ async function crearNotificacion(
 
   for (const seguidor of seguidores ?? []) {
     destinatarios.set(seguidor.usuario_id, { push: true, email: true })
+  }
+
+  // Suscriptores del territorio de la convocatoria ("Sigue tu territorio").
+  // Las preferencias push/email reales se respetan en send-notifications.
+  if (params.tipo === 'nueva_convocatoria' && params.territorio) {
+    const { data: suscriptores } = await supabase
+      .from('usuario_territorios')
+      .select('usuario_id')
+      .eq('territorio', params.territorio)
+      .eq('activa', true)
+
+    for (const sus of suscriptores ?? []) {
+      destinatarios.set(sus.usuario_id, { push: true, email: true })
+    }
   }
 
   if (params.tipo === 'nueva_convocatoria' && Deno.env.get('NOTIFY_ALL_NEW_CONVOCATORIAS') === 'true') {
@@ -1658,6 +1675,7 @@ Deno.serve(async (req) => {
             ? `${nombre} tiene el plazo de inscripción abierto. Confirma la fecha límite en la fuente oficial.`
             : `${nombre} tiene plazo de inscripción abierto hasta el ${formatDate(plazo.fin)}.`,
           metadata: { fuente: item.sourceName, url: item.link, fecha_fin_instancias: formatDate(plazo.fin), plazo_estimado: plazoEstimado },
+          territorio: clasificacion.territorio,
         })
 
         // SEO con IA para la oposición recién creada (best-effort, acotado).

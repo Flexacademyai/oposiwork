@@ -180,6 +180,10 @@ class _OposicionesScreenState extends ConsumerState<OposicionesScreen> {
                           onChanged: (v) => setState(() => _territorio = v),
                         ),
                       ),
+                      // "Sigue tu territorio": campana para recibir alertas de
+                      // cualquier convocatoria nueva en el territorio elegido.
+                      if (_territorio != null)
+                        _CampanaTerritorio(territorio: _territorio!),
                     ],
                   ),
                 ),
@@ -224,6 +228,51 @@ class _OposicionesScreenState extends ConsumerState<OposicionesScreen> {
               onReintentar: () => ref.invalidate(oposicionesConEstadoProvider),
             ),
       ),
+    );
+  }
+}
+
+/// Campana de alertas territoriales: activa/desactiva el aviso de cualquier
+/// convocatoria nueva publicada en el territorio seleccionado.
+class _CampanaTerritorio extends ConsumerWidget {
+  final String territorio;
+
+  const _CampanaTerritorio({required this.territorio});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final seguidosAsync = ref.watch(territoriosSeguidosProvider);
+    final seguidos = seguidosAsync.valueOrNull ?? const <String>{};
+    final siguiendo = seguidos.contains(territorio);
+
+    return IconButton(
+      tooltip:
+          siguiendo
+              ? 'Dejar de recibir alertas de $territorio'
+              : 'Avisarme de nuevas convocatorias en $territorio',
+      icon: Icon(
+        siguiendo
+            ? Icons.notifications_active_rounded
+            : Icons.notifications_none_rounded,
+        color: siguiendo ? AppColors.primary : AppColors.textTertiary,
+      ),
+      onPressed: () async {
+        await ref
+            .read(seguimientoTerritorioControllerProvider)
+            .cambiarSeguimiento(territorio: territorio, seguir: !siguiendo);
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              siguiendo
+                  ? 'Alertas de $territorio desactivadas'
+                  : 'Te avisaremos de cada convocatoria nueva en $territorio',
+            ),
+            backgroundColor:
+                siguiendo ? AppColors.textTertiary : AppColors.success,
+          ),
+        );
+      },
     );
   }
 }
