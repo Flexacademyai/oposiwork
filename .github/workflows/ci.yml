@@ -182,11 +182,14 @@ jobs:
           name: seo-deploy
           path: build/seo
 
+      # Patrón oficial de Vercel para CI: el CLI se vincula solo con
+      # VERCEL_ORG_ID + VERCEL_PROJECT_ID en el entorno.
       - name: Deploy a Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: build/seo
-          vercel-args: '--prod'
+        working-directory: build/seo
+        run: |
+          npm install -g vercel@latest
+          vercel deploy --prod --yes --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
